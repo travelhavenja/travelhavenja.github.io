@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TrueHaven Caribbean</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Hanken+Grotesk:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#ffffff;--surface:#f6f6f4;--fg:#111312;--muted:#6a6f6c;--line:#e3e4e1;
+  --accent:#0f5c4d;--accent-fg:#fff;--ink:#111312;--ink-fg:#fff;--warn:#8a5a00;--warnbg:#fbf1dc;--bad:#a3271d;--badbg:#fbe5e2;--okbg:#e2f1ec;
+  --font-display:'Cormorant Garamond','Times New Roman',serif;
+  --font-body:'Hanken Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0e100f;--surface:#171a19;--fg:#f1f2ef;--muted:#9aa09c;--line:#2a2d2b;
+  --accent:#5fc3ad;--accent-fg:#0b1512;--ink:#f1f2ef;--ink-fg:#0e100f;--warn:#f3c56f;--warnbg:#33290f;--bad:#ff9d93;--badbg:#3a1714;--okbg:#14302a;color-scheme:dark}}
+*{box-sizing:border-box}
+html{scroll-padding-top:calc(64px + env(safe-area-inset-top,0px))}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--font-body);padding-bottom:calc(64px + env(safe-area-inset-bottom,0px))}
+button,select,input,textarea{font:inherit;color:inherit}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+.wrap{max-width:1180px;margin:0 auto;padding:0 max(16px,env(safe-area-inset-left,0px))}
+h1,h2,h3{font-family:var(--font-display);font-weight:500;line-height:1.08;margin:0}
+
+/* top bar */
+header.top{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top,0px)}
+.top .wrap{display:flex;align-items:center;gap:16px;height:60px}
+.logo{font-family:var(--font-display);font-size:26px;font-weight:600;text-decoration:none;white-space:nowrap}
+.logo span{font-style:italic;font-weight:500;color:var(--accent)}
+.top .right{margin-left:auto;display:flex;gap:10px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:2px}
+.seg button{border:0;background:none;padding:5px 11px;border-radius:999px;cursor:pointer;font-size:13px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--ink-fg)}
+.who{font-size:12px;color:var(--muted);text-align:right;line-height:1.2}
+.who b{display:block;color:var(--fg);font-size:13px}
+
+/* bottom nav (mobile-first) */
+nav.bottom{position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--bg);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom,0px)}
+nav.bottom a{flex:1;text-align:center;text-decoration:none;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:10px 2px 9px}
+nav.bottom a .i{display:block;font-size:18px;line-height:1.1;margin-bottom:2px}
+nav.bottom a[aria-current="page"]{color:var(--fg);font-weight:600}
+
+/* buttons & forms */
+.btn{display:inline-block;text-align:center;text-decoration:none;border:1px solid var(--fg);background:none;padding:11px 18px;cursor:pointer;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;border-radius:0}
+.btn:hover{background:var(--ink);color:var(--ink-fg)}
+.btn.solid{background:var(--ink);color:var(--ink-fg);border-color:var(--ink)}
+.btn.solid:hover{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.acc{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.sm{padding:7px 11px;font-size:11px}
+.btn.bad{border-color:var(--bad);color:var(--bad)}
+.btn.bad:hover{background:var(--bad);color:#fff}
+.btn.full{width:100%}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.linkbtn{background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:13px}
+label.f{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.in,select.in,textarea.in{width:100%;border:1px solid var(--line);background:var(--bg);padding:11px 12px;border-radius:0}
+textarea.in{min-height:96px;resize:vertical}
+.form{display:grid;gap:14px}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.r3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.chk{display:flex;gap:9px;align-items:center;font-size:14.5px;cursor:pointer}
+.chk input{width:18px;height:18px;accent-color:var(--accent);margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips label{border:1px solid var(--line);padding:7px 11px;font-size:13.5px;cursor:pointer;display:flex;gap:7px;align-items:center}
+.chips input{accent-color:var(--accent);margin:0}
+.err{color:var(--bad);font-size:14px;font-weight:500;min-height:1.2em}
+.fine{font-size:12.5px;color:var(--muted)}
+.eyebrow{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:8px}
+.sec{padding-top:36px;padding-bottom:36px}
+.sec h2{font-size:clamp(28px,6vw,42px)}
+.panel{border:1px solid var(--line);padding:20px;background:var(--bg)}
+.panel+.panel{margin-top:16px}
+.panel h3{font-size:24px;margin-bottom:10px}
+
+/* hero */
+.hero{position:relative;color:#fff;background:linear-gradient(180deg,#16465a 0%,#d98a5f 52%,#f2c38a 56%,#1e6c80 57%,#0a2f3d 100%)}
+.hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.55))}
+.hero .wrap{position:relative;z-index:1}
+.hero .wrap{padding-top:44px;padding-bottom:32px}
+.hero h1{font-size:clamp(36px,9vw,68px);max-width:15ch}
+.hero p{margin:12px 0 22px;max-width:44ch;opacity:.92;font-size:16px}
+.search{background:var(--bg);color:var(--fg);display:grid;grid-template-columns:1fr 1fr;max-width:980px}
+.search .field{padding:10px 14px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);min-width:0}
+.search .field label{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.search .field select,.search .field input{width:100%;border:0;background:transparent;padding:3px 0;font-size:15px}
+.search .go{grid-column:1/-1;border:0;background:var(--ink);color:var(--ink-fg);padding:15px;cursor:pointer;font-size:13px;letter-spacing:.08em;text-transform:uppercase}
+
+/* cards */
+.head{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.count{color:var(--muted);font-size:14px;margin-top:4px}
+.grid{display:grid;grid-template-columns:1fr;gap:28px 22px}
+.card{cursor:pointer;display:block;text-decoration:none;min-width:0}
+.ph{position:relative;aspect-ratio:4/3;overflow:hidden;background:var(--surface)}
+.ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ph .nm{position:absolute;left:14px;bottom:12px;right:60px;color:#fff;font-family:var(--font-display);font-size:22px;line-height:1.05;text-shadow:0 1px 8px rgba(0,0,0,.25)}
+.badge{position:absolute;left:12px;top:12px;background:var(--bg);color:var(--fg);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:4px 8px}
+.heart{position:absolute;right:10px;top:10px;width:36px;height:36px;border-radius:50%;border:0;background:rgba(0,0,0,.38);color:#fff;cursor:pointer;display:grid;place-items:center;font-size:17px}
+.heart[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
+.meta{padding-top:12px}
+.price{font-family:var(--font-display);font-size:25px;font-weight:600;line-height:1.1}
+.price small{font-family:var(--font-body);font-size:13px;font-weight:400;color:var(--muted)}
+.card h3{font-family:var(--font-body);margin:5px 0 2px;font-size:16px;font-weight:500;line-height:1.3}
+.loc{color:var(--muted);font-size:13.5px}
+.facts{display:flex;gap:12px;margin-top:6px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.by{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:13px}
+.av{width:26px;height:26px;border-radius:50%;background:var(--surface);display:grid;place-items:center;font-size:11px;font-weight:600;border:1px solid var(--line);flex:none}
+.ver{margin-left:auto;color:var(--accent);font-size:12px}
+.empty{padding:44px 16px;text-align:center;color:var(--muted);border:1px dashed var(--line)}
+
+/* filters */
+.filters{border:1px solid var(--line);padding:16px;margin-bottom:22px}
+.filters summary{cursor:pointer;font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+.filters .form{margin-top:14px}
+
+/* property page */
+.gal{display:grid;grid-template-columns:1fr;gap:4px}
+.gal .ph:first-child{aspect-ratio:4/3}
+.thumbs{display:flex;gap:6px;overflow-x:auto;margin-top:6px}
+.thumbs button{border:0;padding:0;width:84px;height:62px;flex:none;cursor:pointer;background:var(--surface);opacity:.7}
+.thumbs button[aria-current="true"]{opacity:1;outline:2px solid var(--fg)}
+.thumbs img{width:100%;height:100%;object-fit:cover;display:block}
+.pp{display:grid;grid-template-columns:1fr;gap:28px;margin-top:22px}
+.pp h1{font-size:clamp(32px,7vw,48px)}
+.specs{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin:18px 0}
+.specs div{background:var(--bg);padding:10px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.specs b{display:block;color:var(--fg);font-size:18px;font-weight:600;letter-spacing:0;text-transform:none}
+.amen{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0;list-style:none;margin:10px 0 0}
+.amen li{display:flex;gap:8px;font-size:14.5px}
+.amen li::before{content:"";width:6px;height:6px;margin-top:8px;background:var(--accent);flex:none}
+.book{border:1px solid var(--line);padding:20px;align-self:start}
+.book h3{font-size:26px}
+.book .grp{display:grid;gap:8px;margin-top:12px}
+.book .lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:16px}
+.reveal{margin-top:8px;padding:10px 12px;background:var(--surface);font-size:14px;word-break:break-all}
+
+/* dashboards */
+.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);margin:18px 0 20px;scrollbar-width:none}
+.tabs a{white-space:nowrap;text-decoration:none;padding:10px 12px;font-size:13.5px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs a[aria-current="page"]{color:var(--fg);border-bottom-color:var(--fg);font-weight:600}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line)}
+.kpi{background:var(--bg);padding:14px}
+.kpi span{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.kpi b{display:block;font-family:var(--font-display);font-size:32px;font-weight:600;line-height:1.1}
+.list{border:1px solid var(--line)}
+.item{display:flex;gap:12px;padding:14px;border-top:1px solid var(--line);align-items:flex-start}
+.item:first-child{border-top:0}
+.item .sw{width:64px;height:52px;flex:none;background:var(--surface);background-size:cover;background-position:center}
+.item .mid{flex:1;min-width:0}
+.item .mid b{display:block;font-weight:600}
+.item .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.st{display:inline-block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:3px 7px;font-weight:600;background:var(--surface);color:var(--muted)}
+.st.approved,.st.active,.st.trial{background:var(--okbg);color:var(--accent)}
+.st.pending,.st.past_due{background:var(--warnbg);color:var(--warn)}
+.st.rejected,.st.cancelled,.st.expired,.st.suspended,.st.removed{background:var(--badbg);color:var(--bad)}
+.st.paused{background:var(--surface);color:var(--muted)}
+.stats{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:4px}
+.stats b{color:var(--fg)}
+.stats span{white-space:nowrap}
+.bars{display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:110px 1fr 44px;gap:10px;align-items:center;font-size:13.5px}
+.bar .t{height:12px;background:var(--surface)}
+.bar .t i{display:block;height:100%;background:var(--accent)}
+.bar em{font-style:normal;text-align:right;color:var(--muted)}
+.spark{display:flex;align-items:flex-end;gap:3px;height:90px;margin-top:10px}
+.spark i{flex:1;background:var(--accent);min-height:2px;opacity:.85}
+.steps{display:flex;gap:6px;margin:16px 0 22px}
+.steps i{flex:1;height:3px;background:var(--line)}
+.steps i.on{background:var(--fg)}
+.pics{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pics div{position:relative;aspect-ratio:1;background:var(--surface)}
+.pics img{width:100%;height:100%;object-fit:cover;display:block}
+.pics button{position:absolute;right:4px;top:4px;border:0;background:rgba(0,0,0,.6);color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer}
+.pics button.mk{left:4px;right:auto;top:auto;bottom:4px;width:auto;height:auto;border-radius:0;background:var(--bg);color:var(--fg);padding:3px 6px;font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+.pics .cover{position:absolute;left:4px;bottom:4px;background:var(--bg);font-size:10px;padding:2px 5px;text-transform:uppercase;letter-spacing:.06em}
+.optrow{border:1px solid var(--line);padding:12px}
+.optrow .in{margin-top:8px}
+.notice{padding:12px 14px;font-size:14px;background:var(--warnbg);color:var(--warn)}
+.notice.ok{background:var(--okbg);color:var(--accent)}
+.notice.bad{background:var(--badbg);color:var(--bad)}
+
+/* modal + toast */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:50;display:flex;justify-content:center;align-items:flex-end;overflow-y:auto}
+.sheet{background:var(--bg);width:100%;max-width:520px;padding:22px 20px calc(22px + env(safe-area-inset-bottom,0px));position:relative}
+.sheet h3{font-size:26px;margin-bottom:8px;padding-right:36px}
+.sheet .x{position:absolute;right:12px;top:12px;width:34px;height:34px;border:0;border-radius:50%;background:var(--surface);cursor:pointer;font-size:19px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--ink);color:var(--ink-fg);padding:12px 18px;font-size:14px;max-width:calc(100% - 32px)}
+footer{padding:36px 0 28px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);margin-top:30px}
+
+@media (min-width:700px){
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .search{grid-template-columns:repeat(3,1fr)}
+  .kpis{grid-template-columns:repeat(4,1fr)}
+  .pics{grid-template-columns:repeat(4,1fr)}
+  .scrim{align-items:center}
+}
+@media (min-width:1000px){
+  .grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .search{grid-template-columns:repeat(6,1fr)}
+  .search .go{grid-column:auto}
+  .pp{grid-template-columns:1.5fr 1fr}
+  .gal{grid-template-columns:2fr 1fr}
+}
+@media (max-width:520px){.who{display:none}.top .wrap{gap:8px}.top .right{gap:8px}.listbtn{padding:8px 9px;font-size:10.5px;letter-spacing:.04em;white-space:nowrap}.seg button{padding:5px 8px}}
+@media (max-width:440px){.top .logo span{display:none}}
+@media (max-width:380px){.logo{font-size:22px}}
+@media (max-width:699px){.search .field:nth-child(5){grid-column:1/-1}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="logo" href="#home">TrueHaven <span>Caribbean</span></a>
+  <div class="right">
+    <div class="seg" role="group" aria-label="Currency"><button data-cur="USD" aria-pressed="true">US$</button><button data-cur="JMD" aria-pressed="false">J$</button></div>
+    <div class="who" id="who"></div>
+    <a class="btn solid sm listbtn" id="listBtn" href="#host-join">+ List property</a>
+  </div>
+</div></header>
+<main id="app"></main>
+<nav class="bottom" id="bnav" aria-label="Main"></nav>
+<div class="scrim" id="scrim" hidden role="dialog" aria-modal="true"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast" role="status" hidden></div>
+<script type="module">
+/* Firebase web config: public by design; access is controlled by firestore.rules. */
+const FIREBASE_CONFIG = {
+  "apiKey": "AIzaSyATFuP10QlWJxPtDpbKC9LT2rIp4phjxmY",
+  "authDomain": "truehaven-af257.firebaseapp.com",
+  "projectId": "truehaven-af257",
+  "storageBucket": "truehaven-af257.firebasestorage.app",
+  "messagingSenderId": "189333550363",
+  "appId": "1:189333550363:web:ff1b57df2117bcd8c70fbe"
+};
+"use strict";
+/* =========================================================
+   TrueHaven Prototype 0 (shared backend edition)
+   Settings and business rules. The database layer is in fbdb.js.
+   ========================================================= */
+
+/* Countries are config, not code: add a new island here later. */
+const COUNTRIES = {
+  JM: { name: "Jamaica", currency: "JMD", symbol: "J$", rateFromUSD: 157, live: true,
+        regionLabel: "Parish",
+        regions: ["Kingston","St Andrew","St Thomas","Portland","St Mary","St Ann","Trelawny","St James","Hanover","Westmoreland","St Elizabeth","Manchester","Clarendon","St Catherine"] }
+  // BB: { name:"Barbados", currency:"BBD", ..., live:false }
+};
+const ACTIVE_COUNTRY = "JM";
+const C = COUNTRIES[ACTIVE_COUNTRY];
+
+const TYPES = ["Villa","Apartment","Hotel","Guesthouse","House","Other"];
+const AMENITIES = ["Wi-Fi","Air conditioning","Pool","Beach access","Sea view","Kitchen","Parking","Washer","Hot water","Backup generator","Water tank","Security / gated","Airport pickup","Pet friendly","Workspace","Breakfast included"];
+const PLANS = { small: { label: "1–2 properties", price: 12 }, large: { label: "3+ properties", price: 24 } };
+const TRIAL_DAYS = 60, GRACE_DAYS = 7;
+/* TESTING ONLY: new and edited listings go live right away so testers see the full journey.
+   Set to false once the shared backend is connected and the admin reviews listings. */
+const TEST_AUTO_APPROVE = true;
+const PAIRS = [["#0f5c4d","#c98a4b"],["#1d3557","#e9c46a"],["#2a6f97","#f4a261"],["#264653","#e76f51"],["#3d405b","#81b29a"],["#6d597a","#eaac8b"],["#14213d","#fca311"],["#386641","#f2e8cf"],["#7b2d26","#f0c987"],["#005f73","#94d2bd"]];
+const DAY = 864e5;
+async function sha256(t) { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); }
+
+/* ---------- business rules ---------- */
+function hostProps(hostId) { return DB.all("properties").filter(p => p.hostId === hostId && p.status !== "removed"); }
+function planFor(hostId) { return hostProps(hostId).length >= 3 ? "large" : "small"; }
+function subOf(hostId) { return DB.find("subscriptions", "hostId", hostId); }
+/* Moves subscriptions forward in time: trials end, renewals happen, grace periods run out. */
+function tickSubscriptions() {
+  const now = Date.now();
+  DB.all("subscriptions").forEach(s => {
+    if (!DB.state.isAdmin && !(DB.state.user && s.hostId === DB.state.user.uid)) return;
+    s.plan = planFor(s.hostId);
+    if (s.status === "trial" && now > s.trialEndsAt) {
+      if (s.autoRenew && s.card) charge(s, true); else { s.status = s.autoRenew ? "past_due" : "expired"; }
+    } else if (s.status === "active" && now > s.currentPeriodEnd) {
+      if (s.autoRenew) charge(s, true); else s.status = "expired";
+    } else if (s.status === "cancelled" && now > s.currentPeriodEnd) {
+      s.status = "expired";
+    } else if (s.status === "past_due" && now > s.currentPeriodEnd + GRACE_DAYS * DAY) {
+      s.status = "expired";
+    }
+  });
+  DB.save();
+}
+/* Simulated payment. In the live app this is Stripe/PayPal. */
+function charge(s, auto, forceFail) {
+  const amount = PLANS[s.plan].price;
+  const ok = !forceFail && !!s.card && !s.card.failNext;
+  const base = Math.max(Date.now(), s.currentPeriodEnd || 0);
+  if (ok) {
+    s.status = "active"; s.failedAttempts = 0;
+    s.currentPeriodEnd = base + 30 * DAY;
+    s.history.unshift({ at: Date.now(), amount, result: "paid" });
+  } else {
+    s.status = "past_due"; s.failedAttempts = (s.failedAttempts || 0) + 1;
+    if (s.card) s.card.failNext = false;
+    s.history.unshift({ at: Date.now(), amount, result: "failed" });
+  }
+  DB.save(); return ok;
+}
+/* A host's listings are public only while their subscription is in good standing. */
+function hostInGoodStanding(hostId) {
+  const u = DB.find("users", "userId", hostId); if (!u || u.status !== "active" || u.accountType !== "host") return false;
+  const s = subOf(hostId); if (!s) return false;
+  if (["trial","active","cancelled"].includes(s.status)) return true;
+  if (s.status === "past_due") return Date.now() <= s.currentPeriodEnd + GRACE_DAYS * DAY;
+  return false;
+}
+function isPublic(p) {
+  if (p.country !== ACTIVE_COUNTRY || p.status !== "approved") return false;
+  if (p.sample) return true;
+  if (subOf(p.hostId) && DB.find("users", "userId", p.hostId)) return hostInGoodStanding(p.hostId);
+  return p.live === true;
+}
+function optionsOf(pid) { return DB.find("options", "propertyId", pid) || {}; }
+function stats(pid, sinceDays) {
+  const since = sinceDays ? Date.now() - sinceDays * DAY : 0, o = { view: 0, booking: 0, whatsapp: 0, phone: 0, email: 0 };
+  DB.all("events").forEach(e => { if ((!pid || e.propertyId === pid) && e.at >= since && o[e.type] != null) o[e.type]++; });
+  return o;
+}
+function trafficSource() {
+  try { const r = document.referrer ? new URL(document.referrer).hostname : "";
+    if (!r) return "Direct";
+    if (/instagram/.test(r)) return "Instagram"; if (/facebook|fb\./.test(r)) return "Facebook";
+    if (/google/.test(r)) return "Google"; if (/whatsapp|wa\.me/.test(r)) return "WhatsApp"; return r;
+  } catch (e) { return "Direct"; }
+}
+const SOURCE = trafficSource();
+function track(type, pid) { const p = DB.find("properties", "propertyId", pid); if (!p) return; DB.insert("events", { type, propertyId: pid, hostId: p.hostId, at: Date.now(), source: String(SOURCE).slice(0, 60) }); }
+
+/* =========================================================
+   SHARED BACKEND (Firebase Auth + Cloud Firestore)
+   The screens still read from an in-memory cache through DB.*.
+   Live listeners keep that cache in sync with Firestore, and
+   DB.save() pushes any changed rows back up. Security rules on
+   the server decide who may read or write what (firestore.rules).
+   ========================================================= */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail,
+  sendEmailVerification, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, onSnapshot, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const fbApp = initializeApp(FIREBASE_CONFIG);
+const auth = getAuth(fbApp), fs = getFirestore(fbApp);
+
+/* table name -> Firestore collection + key field */
+const TABLES = {
+  users: { col: "users", key: "userId" },
+  properties: { col: "properties", key: "propertyId" },
+  options: { col: "options", key: "propertyId" },
+  subscriptions: { col: "subscriptions", key: "hostId" },
+  reports: { col: "reports", key: "reportId" },
+  events: { col: "events", key: "eventId" },
+  favorites: { col: "favorites", key: "favId" }
+};
+const LOCAL_FAV_KEY = "truehaven_device_favs";
+
+const DB = (() => {
+  const objs = {}, synced = {}, sources = {}; // table -> id -> object / json / Set(listener names)
+  Object.keys(TABLES).forEach(t => { objs[t] = new Map(); synced[t] = new Map(); sources[t] = new Map(); });
+  let unsubs = [], flushing = Promise.resolve(), pending = false;
+  const state = { user: null, isAdmin: false, ready: false };
+  // device favourites (signed out)
+  let deviceFavs = [];
+  try { deviceFavs = JSON.parse(localStorage.getItem(LOCAL_FAV_KEY) || "[]"); } catch (e) {}
+
+  const strip = (t, o) => { const c = {}; for (const k in o) if (k[0] !== "_" && !(t === "properties" && k === "photos") && o[k] !== undefined) c[k] = o[k]; return c; };
+  const sig = (t, o) => JSON.stringify(strip(t, o));
+
+  function applySnap(t, name, snap) {
+    const seen = new Set();
+    snap.forEach(ds => {
+      const id = ds.id, data = ds.data(); seen.add(id);
+      let o = objs[t].get(id);
+      if (!o) { o = {}; objs[t].set(id, o); }
+      const keepPhotos = o._full;
+      for (const k of Object.keys(o)) if (k[0] !== "_") delete o[k];
+      Object.assign(o, data); o[TABLES[t].key] = id;
+      if (t === "properties") o.photos = keepPhotos || (o.cover ? [o.cover] : []);
+      synced[t].set(id, sig(t, o));
+      (sources[t].get(id) || sources[t].set(id, new Set()).get(id)).add(name);
+    });
+    // drop rows this listener no longer sees
+    for (const [id, set] of sources[t]) if (set.has(name) && !seen.has(id)) {
+      set.delete(name); if (!set.size) { sources[t].delete(id); objs[t].delete(id); synced[t].delete(id); }
+    }
+    scheduleRender();
+  }
+  function listen(t, name, q) {
+    unsubs.push(onSnapshot(q, s => applySnap(t, name, s), e => { console.warn(t, name, e.code); }));
+  }
+  function listenDoc(t, name, ref) {
+    unsubs.push(onSnapshot(ref, ds => applySnap(t, name, { forEach: fn => { if (ds.exists()) fn(ds); } }), e => { console.warn(t, name, e.code); }));
+  }
+  let renderTimer = null;
+  const NO_REFRESH = /^#(host-add|host-edit|host-join|account)/;
+  function scheduleRender() { if (!state.ready) return; clearTimeout(renderTimer); renderTimer = setTimeout(() => {
+    if (document.querySelector("#scrim:not([hidden])") || isTyping() || NO_REFRESH.test(location.hash)) return; route(true); }, 150); }
+  const isTyping = () => { const a = document.activeElement; return a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && !a.closest(".search"); };
+
+  function stopAll() {
+    unsubs.forEach(u => u()); unsubs = [];
+    Object.keys(TABLES).forEach(t => { objs[t].clear(); synced[t].clear(); sources[t].clear(); });
+  }
+  function startListeners() {
+    stopAll();
+    const P = collection(fs, "properties"), uid = state.user && state.user.uid;
+    listen("properties", "live", query(P, where("live", "==", true)));
+    listen("options", "all", collection(fs, "options"));
+    if (uid) {
+      listenDoc("users", "me", doc(fs, "users", uid));
+      listen("favorites", "mine", query(collection(fs, "favorites"), where("userId", "==", uid)));
+      listen("properties", "mine", query(P, where("hostId", "==", uid)));
+      listenDoc("subscriptions", "mine", doc(fs, "subscriptions", uid));
+      listen("events", "mine", query(collection(fs, "events"), where("hostId", "==", uid)));
+    }
+    if (state.isAdmin) {
+      listen("properties", "admin", P);
+      listen("users", "admin", collection(fs, "users"));
+      listen("subscriptions", "admin", collection(fs, "subscriptions"));
+      listen("events", "admin", collection(fs, "events"));
+      listen("reports", "admin", collection(fs, "reports"));
+    }
+  }
+
+  /* Push every changed row to Firestore, in an order the security rules accept. */
+  async function flush() {
+    const order = ["users", "subscriptions", "properties", "options", "favorites", "reports", "events"];
+    for (const t of order) {
+      for (const [id, o] of objs[t]) {
+        if (t === "properties") recomputeLive(o);
+        const s = sig(t, o);
+        if (synced[t].get(id) === s) { if (t === "properties") await flushPhotos(o); continue; }
+        try {
+          if (t === "properties" && o._photosDirty) o.cover = o.photos[0] ? await thumb(o.photos[0]) : "";
+          const data = strip(t, o);
+          if (t === "events" || (t === "reports" && !synced[t].has(id))) { await setDoc(doc(fs, TABLES[t].col, id), data); }
+          else await setDoc(doc(fs, TABLES[t].col, id), data);
+          synced[t].set(id, sig(t, o));
+          if (t === "properties") await flushPhotos(o);
+          if (t === "events" && !state.isAdmin && !(state.user && o.hostId === state.user.uid)) { objs[t].delete(id); synced[t].delete(id); }
+        } catch (e) {
+          console.warn("save failed", t, id, e.code || e);
+          synced[t].set(id, s); // don't retry forever
+          toast(e.code === "permission-denied" ? "You don't have permission to change that." : "Couldn't save. Check your connection and try again.");
+        }
+      }
+    }
+  }
+  async function flushPhotos(o) {
+    if (!o._photosDirty) return; o._photosDirty = false;
+    const col = collection(fs, "properties", o.propertyId, "photos");
+    try {
+      const old = await getDocs(col);
+      const b = writeBatch(fs); old.forEach(d => b.delete(d.ref)); await b.commit();
+      for (let i = 0; i < o.photos.length; i++) await setDoc(doc(col, "p" + i), { n: i, data: o.photos[i] });
+      o._full = o.photos.slice();
+    } catch (e) { console.warn("photos", e); toast("Couldn't upload photos. Try smaller photos."); }
+  }
+  function save() { pending = true; flushing = flushing.then(() => { if (!pending) return; pending = false; return flush(); }); return flushing; }
+
+  return {
+    state, auth, fs,
+    data: { get session() { return state.user ? state.user.uid : null; } },
+    all(t) { if (t === "favorites") return [...objs[t].values()].concat(deviceFavs.map(f => ({ userId: "device", propertyId: f }))); return [...objs[t].values()]; },
+    find(t, key, v) { if (key === TABLES[t].key) return objs[t].get(v); return this.all(t).find(r => r[key] === v); },
+    insert(t, row) {
+      const k = TABLES[t].key; if (!row[k]) row[k] = this.id(t[0]);
+      if (t === "properties") row._photosDirty = !!(row.photos && row.photos.length);
+      objs[t].set(row[k], row); (sources[t].get(row[k]) || sources[t].set(row[k], new Set()).get(row[k])).add("local");
+      save(); return row;
+    },
+    update(t, key, v, patch) { const r = this.find(t, key, v); if (r) { Object.assign(r, patch); save(); } return r; },
+    async remove(t, key, v) { const r = this.find(t, key, v); if (!r) return; const id = r[TABLES[t].key]; objs[t].delete(id); synced[t].delete(id); sources[t].delete(id);
+      try { await deleteDoc(doc(fs, TABLES[t].col, id)); } catch (e) { toast("Couldn't delete that."); } },
+    save, flush: () => flushing,
+    /* Write one row straight to the server (used during sign-up, before listeners are running). */
+    async writeNow(t, row) { const id = row[TABLES[t].key]; await setDoc(doc(fs, TABLES[t].col, id), strip(t, row)); },
+    async waitFor(test, ms = 4000) { const end = Date.now() + ms; while (Date.now() < end) { if (test()) return true; await new Promise(r => setTimeout(r, 100)); } return false; },
+    id(p) { const a = crypto.getRandomValues(new Uint8Array(10)); return (p || "x") + [...a].map(x => (x % 36).toString(36)).join(""); },
+    markPhotos(p) { p._photosDirty = true; },
+    async loadPhotos(p) {
+      if (!p || p._full || p._loading) return; p._loading = true;
+      try { const s = await getDocs(query(collection(fs, "properties", p.propertyId, "photos"), orderBy("n")));
+        p._full = s.docs.map(d => d.data().data); if (p._full.length) p.photos = p._full.slice(); scheduleRender(); }
+      catch (e) { p._full = p.photos.slice(); }
+      p._loading = false;
+    },
+    deviceFav(pid, on) { deviceFavs = deviceFavs.filter(x => x !== pid); if (on) deviceFavs.push(pid); try { localStorage.setItem(LOCAL_FAV_KEY, JSON.stringify(deviceFavs)); } catch (e) {} },
+    takeDeviceFavs() { const f = deviceFavs; deviceFavs = []; try { localStorage.removeItem(LOCAL_FAV_KEY); } catch (e) {} return f; },
+    startListeners, stopAll,
+    fx: { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, sendEmailVerification, EmailAuthProvider, reauthenticateWithCredential, updatePassword, getDoc, doc, setDoc, addDoc, collection }
+  };
+})();
+window.DB = DB;
+
+function thumb(src) {
+  return new Promise(res => { const i = new Image(); i.onload = () => { const s = Math.min(1, 520 / Math.max(i.width, i.height)), c = document.createElement("canvas");
+    c.width = Math.round(i.width * s); c.height = Math.round(i.height * s); c.getContext("2d").drawImage(i, 0, 0, c.width, c.height); res(c.toDataURL("image/jpeg", .62)); };
+    i.onerror = () => res(""); i.src = src; });
+}
+/* A listing is "live" (visible to everyone) when approved and its host is in good standing. */
+function recomputeLive(p) {
+  let live;
+  if (p.sample) live = p.status === "approved";
+  else { const s = subOf(p.hostId), u = DB.find("users", "userId", p.hostId); if (!s || !u) return; live = p.status === "approved" && hostInGoodStanding(p.hostId); }
+  if (p.live !== live) p.live = live;
+}
+
+/* ---------- auth state ---------- */
+onAuthStateChanged(auth, async u => {
+  DB.state.user = u; DB.state.isAdmin = false;
+  if (u) {
+    try { await getDoc(doc(fs, "meta", "admin")); DB.state.isAdmin = true; } catch (e) { DB.state.isAdmin = false; }
+    // make sure a profile row exists
+    try { const ref = doc(fs, "users", u.uid), s = await getDoc(ref);
+      if (!s.exists() && !DB.state.pendingProfile) await setDoc(ref, { name: u.email.split("@")[0], email: u.email, accountType: "guest", country: "", status: "active", createdAt: Date.now() });
+    } catch (e) { console.warn(e); }
+  }
+  DB.startListeners();
+  // carry device favourites into the account
+  if (u) DB.takeDeviceFavs().forEach(pid => DB.insert("favorites", { favId: u.uid + "_" + pid, userId: u.uid, propertyId: pid }));
+  DB.state.ready = true;
+  route();
+});
+
+/* =========================================================
+   UI helpers, router and GUEST screens
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const app = $("#app");
+const state = { cur: "USD", q: { parish: "", town: "", guests: 0, min: "", max: "", type: "", sort: "featured" }, gal: 0 };
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtDate = t => new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+const initials = n => String(n || "?").split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase();
+const digits = s => String(s || "").replace(/\D/g, "");
+const prettyPhone = p => { let d = digits(p); if (d.length === 11 && d[0] === "1") d = d.slice(1); return d.length === 10 ? `+1 (${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : p; };
+const safeUrl = u => /^https:\/\/[^\s]+\.[^\s]+/i.test(u || "") ? u : "";
+
+function money(usd, per) {
+  const v = state.cur === "USD" ? usd : usd * C.rateFromUSD;
+  const t = (state.cur === "USD" ? "US$" : C.symbol) + Math.round(v).toLocaleString("en-US");
+  return per ? `${t} <small>/ ${per}</small>` : t;
+}
+function other(usd) { return state.cur === "USD" ? C.symbol + Math.round(usd * C.rateFromUSD).toLocaleString("en-US") : "US$" + Math.round(usd).toLocaleString("en-US"); }
+const HUES = [168, 196, 28, 12, 230, 260, 50, 120, 92, 210];
+function bg(p) { return `background:hsl(${HUES[(p.pair || 0) % HUES.length]} 30% 46%)`; }
+function photoBox(p, i = 0, withName = true) {
+  const src = (p.photos || [])[i];
+  return src ? `<img src="${src}" alt="Photo of ${esc(p.name)}">`
+             : `<div style="position:absolute;inset:0;${bg(p)}"></div>${withName ? `<div class="nm">${esc(p.name)}</div>` : ""}`;
+}
+function toast(m) { const t = $("#toast"); t.textContent = m; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 3800); }
+function modal(html) { $("#sheet").innerHTML = `<button class="x" data-close aria-label="Close">×</button>` + html; $("#scrim").hidden = false; document.body.style.overflow = "hidden"; }
+function closeModal() { $("#scrim").hidden = true; document.body.style.overflow = ""; }
+function me() {
+  const a = DB.state.user; if (!a) return null;
+  const u = DB.find("users", "userId", a.uid) || { userId: a.uid, name: (a.email || "").split("@")[0], email: a.email, accountType: "guest", country: "", status: "active", createdAt: Date.now() };
+  return DB.state.isAdmin ? Object.assign(u, { _admin: true }) : u;
+}
+function role() { const u = me(); return !u ? "visitor" : DB.state.isAdmin ? "admin" : u.accountType; }
+function favKey() { const u = me(); return u ? u.userId : "device"; }
+function isFav(pid) { return DB.all("favorites").some(f => f.userId === favKey() && f.propertyId === pid); }
+function toggleFav(pid) {
+  const k = favKey(), on = !isFav(pid);
+  if (k === "device") DB.deviceFav(pid, on);
+  else if (on) DB.insert("favorites", { favId: k + "_" + pid, userId: k, propertyId: pid });
+  else DB.remove("favorites", "favId", k + "_" + pid);
+  return on;
+}
+function go(h) { if (location.hash === "#" + h) route(); else location.hash = h; }
+
+/* ---------- navigation ---------- */
+function nav(cur) {
+  const r = role();
+  let items = [["home", "⌂", "Explore"], ["search", "⌕", "Search"], ["favorites", "♡", "Saved"], ["account", "○", "Account"]];
+  if (r === "host") items = [["home", "⌂", "Explore"], ["host", "▦", "Dashboard"], ["host-add", "+", "Add"], ["account", "○", "Account"]];
+  if (r === "admin") items = [["home", "⌂", "Explore"], ["admin", "▦", "Admin"], ["admin-properties", "☰", "Listings"], ["account", "○", "Account"]];
+  $("#bnav").innerHTML = items.map(([h, i, t]) => `<a href="#${h}" ${cur === h || (cur.startsWith(h + "-") && h !== "host" && h !== "admin") ? 'aria-current="page"' : ""}><span class="i" aria-hidden="true">${i}</span>${t}</a>`).join("");
+  const lb = $("#listBtn");
+  lb.href = r === "host" ? "#host-add" : r === "admin" ? "#admin-properties" : "#host-join";
+  lb.textContent = r === "admin" ? "Listings" : "+ List property";
+  lb.setAttribute("aria-current", (cur === "host-add" || cur === "host-join") ? "page" : "false");
+  const u = me();
+  $("#who").innerHTML = u ? `<b>${esc(String(u.name).split(" ")[0])}</b>${esc(role())}` : "";
+}
+
+function route(soft) {
+  if (!DB.state.ready) { app.innerHTML = `<section class="sec wrap"><div class="empty">Loading TrueHaven…</div></section>`; return; }
+  const y = window.scrollY;
+  tickSubscriptions();
+  if (!soft) closeModal();
+  const h = (location.hash || "#home").slice(1) || "home";
+  const [base, ...rest] = h.split("-"); const arg = rest.join("-");
+  let page = h;
+  const need = base === "admin" ? "admin" : (base === "host" && h !== "host-join") ? "host" : "";
+  if (need && role() !== need && !(rest[0] === "edit" && role() === "admin")) { renderAccount(need); nav("account"); if (!soft) window.scrollTo(0, 0); return; }
+  if (h === "host-join" && role() === "host") { location.hash = "host"; return; }
+  if (h === "home") renderHome();
+  else if (h === "search") renderSearch();
+  else if (base === "stay") renderProperty(arg);
+  else if (h === "favorites") renderFavorites();
+  else if (h === "account") renderAccount();
+  else if (h === "host-join") renderHostJoin();
+  else if (h === "host") renderHostDash();
+  else if (h === "host-add") renderWizard(null);
+  else if (base === "host" && rest[0] === "edit") renderWizard(rest.slice(1).join("-"));
+  else if (base === "admin") renderAdmin(arg || "dashboard");
+  else { page = "home"; renderHome(); }
+  nav(page); window.scrollTo(0, soft ? y : 0);
+}
+
+/* ---------- cards ---------- */
+function card(p) {
+  const host = { name: p.hostName || (DB.find("users", "userId", p.hostId) || {}).name };
+  const fav = isFav(p.propertyId);
+  return `<a class="card" href="#stay-${p.propertyId}">
+    <div class="ph">${photoBox(p)}${p.featured ? `<span class="badge">Featured</span>` : ""}
+      <button class="heart" data-fav="${p.propertyId}" aria-pressed="${fav}" aria-label="${fav ? "Remove from saved" : "Save"}">${fav ? "♥" : "♡"}</button></div>
+    <div class="meta">
+      <div class="price">${money(p.price, "night")}</div>
+      <h3>${esc(p.name)}</h3>
+      <div class="loc">${esc(p.town)}, ${esc(p.parish)} · ${esc(p.type)}</div>
+      <div class="facts"><span>${p.bedrooms} bd</span><span>${p.bathrooms} ba</span><span>Up to ${p.maxGuests} guests</span></div>
+      <div class="by"><span class="av">${esc(initials(host.name))}</span><span>${esc(host.name || "Host")}</span><span class="ver">✓ Approved</span></div>
+    </div></a>`;
+}
+
+/* ---------- search ---------- */
+function searchFields(prefix, compact) {
+  const q = state.q;
+  const parishOpts = `<option value="">All parishes</option>` + C.regions.map(r => `<option ${q.parish === r ? "selected" : ""}>${r}</option>`).join("");
+  const typeOpts = `<option value="">Any type</option>` + TYPES.map(t => `<option ${q.type === t ? "selected" : ""}>${t}</option>`).join("");
+  const sym = state.cur === "USD" ? "US$" : C.symbol;
+  if (compact) return `
+    <div class="field"><label for="${prefix}parish">${C.regionLabel}</label><select id="${prefix}parish" data-q="parish">${parishOpts}</select></div>
+    <div class="field"><label for="${prefix}town">Town / area</label><input id="${prefix}town" data-q="town" placeholder="e.g. Negril" value="${esc(q.town)}"></div>
+    <div class="field"><label for="${prefix}guests">Guests</label><input id="${prefix}guests" data-q="guests" type="number" min="0" inputmode="numeric" placeholder="Any" value="${q.guests || ""}"></div>
+    <div class="field"><label for="${prefix}type">Property type</label><select id="${prefix}type" data-q="type">${typeOpts}</select></div>
+    <div class="field"><label for="${prefix}max">Max / night (${sym})</label><input id="${prefix}max" data-q="max" type="number" min="0" inputmode="numeric" placeholder="Any" value="${esc(q.max)}"></div>`;
+  return `<div class="form">
+    <div class="r2"><div><label class="f" for="${prefix}parish">${C.regionLabel}</label><select class="in" id="${prefix}parish" data-q="parish">${parishOpts}</select></div>
+      <div><label class="f" for="${prefix}town">Town / area</label><input class="in" id="${prefix}town" data-q="town" placeholder="e.g. Negril" value="${esc(q.town)}"></div></div>
+    <div class="r2"><div><label class="f" for="${prefix}guests">Guests</label><input class="in" id="${prefix}guests" data-q="guests" type="number" min="0" inputmode="numeric" placeholder="Any" value="${q.guests || ""}"></div>
+      <div><label class="f" for="${prefix}type">Property type</label><select class="in" id="${prefix}type" data-q="type">${typeOpts}</select></div></div>
+    <div class="r2"><div><label class="f" for="${prefix}min">Min / night (${sym})</label><input class="in" id="${prefix}min" data-q="min" type="number" min="0" inputmode="numeric" placeholder="0" value="${esc(q.min)}"></div>
+      <div><label class="f" for="${prefix}max">Max / night (${sym})</label><input class="in" id="${prefix}max" data-q="max" type="number" min="0" inputmode="numeric" placeholder="Any" value="${esc(q.max)}"></div></div>
+    <button class="btn linkbtn" type="button" data-clear style="justify-self:start">Clear filters</button></div>`;
+}
+function results() {
+  const q = state.q, toUsd = v => state.cur === "USD" ? +v : +v / C.rateFromUSD;
+  let r = DB.all("properties").filter(isPublic).filter(p =>
+    (!q.parish || p.parish === q.parish) &&
+    (!q.town || (p.town + " " + p.address).toLowerCase().includes(q.town.trim().toLowerCase())) &&
+    (!q.guests || p.maxGuests >= +q.guests) &&
+    (!q.type || p.type === q.type) &&
+    (q.min === "" || p.price >= toUsd(q.min)) &&
+    (q.max === "" || p.price <= toUsd(q.max)));
+  const s = q.sort;
+  r.sort((a, b) => s === "lo" ? a.price - b.price : s === "hi" ? b.price - a.price : s === "guests" ? b.maxGuests - a.maxGuests : (!!b.featured - !!a.featured) || b.createdAt - a.createdAt);
+  return r;
+}
+
+/* ---------- GUEST: Home ---------- */
+function renderHome() {
+  const live = DB.all("properties").filter(isPublic);
+  const feat = live.filter(p => p.featured).slice(0, 3);
+  const parishes = [...new Set(live.map(p => p.parish))];
+  app.innerHTML = `
+  <section class="hero"><div class="wrap">
+    <div class="eyebrow" style="color:#fff;opacity:.9">Jamaica · Villas, apartments, guesthouses</div>
+    <h1>Stay in Jamaica, straight from the host.</h1>
+    <p>Find a place, then book through the host's Airbnb or Booking.com page, or contact them directly on WhatsApp, phone or email.</p>
+    <form class="search" id="heroSearch" role="search">${searchFields("h", true)}<button class="go" type="submit">Search stays</button></form>
+  </div></section>
+  <section class="sec wrap">
+    <div class="eyebrow">Hand-picked</div><div class="head"><h2>Featured stays</h2><a class="btn sm" href="#search">See all ${live.length}</a></div>
+    <div class="grid">${feat.map(card).join("") || `<div class="empty">No featured stays yet.</div>`}</div>
+  </section>
+  <section class="sec wrap" style="padding-top:0">
+    <div class="eyebrow">Browse by ${C.regionLabel.toLowerCase()}</div><h2 style="margin-bottom:16px">Where to stay</h2>
+    <div class="chips">${parishes.map(p => `<button class="btn sm" data-parish="${esc(p)}">${esc(p)} · ${live.filter(x => x.parish === p).length}</button>`).join("")}</div>
+  </section>
+  <section class="sec" style="background:var(--surface)"><div class="wrap">
+    <div class="eyebrow">For property owners</div><h2>List your property in Jamaica</h2>
+    <p class="fine" style="font-size:15px;max-width:52ch;margin:10px 0 18px">Guests find you here, then book through your own Airbnb or Booking.com page, or contact you directly. ${TRIAL_DAYS} days free, then US$${PLANS.small.price}/month for 1–2 properties or US$${PLANS.large.price}/month for 3 or more.</p>
+    <a class="btn solid" href="${role() === "host" ? "#host-add" : "#host-join"}">${role() === "host" ? "+ Add property" : "Become a host"}</a>
+  </div></section>
+  ${footer()}`;
+}
+function footer() {
+  return `<footer><div class="wrap"><a class="logo" href="#home" style="font-size:22px">TrueHaven <span>Caribbean</span></a>
+    <p style="max-width:56ch">A directory of stays in Jamaica. TrueHaven does not process reservations or payments: the host handles availability, booking, payment, cancellations and communication.</p>
+    <p class="fine">Prototype 0 · Sample data only · Launching in ${C.name}, more islands later.</p></div></footer>`;
+}
+
+/* ---------- GUEST: Search results ---------- */
+function renderSearch() {
+  const r = results(), q = state.q, active = ["parish", "town", "guests", "min", "max", "type"].filter(k => q[k]).length;
+  app.innerHTML = `<section class="sec wrap">
+    <div class="head"><div><h2>Stays in ${esc(q.town || q.parish || C.name)}</h2><p class="count">${r.length} ${r.length === 1 ? "property" : "properties"}</p></div>
+      <label class="fine" style="display:flex;gap:8px;align-items:center">Sort
+        <select class="in" style="width:auto;padding:7px 9px" data-q="sort">
+          <option value="featured" ${q.sort === "featured" ? "selected" : ""}>Featured</option>
+          <option value="lo" ${q.sort === "lo" ? "selected" : ""}>Price, low to high</option>
+          <option value="hi" ${q.sort === "hi" ? "selected" : ""}>Price, high to low</option>
+          <option value="guests" ${q.sort === "guests" ? "selected" : ""}>Most guests</option></select></label></div>
+    <details class="filters" ${active ? "" : "open"}><summary>Filters${active ? ` (${active})` : ""}</summary>${searchFields("s", false)}</details>
+    <div class="grid" id="grid">${r.map(card).join("") || `<div class="empty">No stays match these filters yet. Try another parish or a wider price range.</div>`}</div>
+  </section>${footer()}`;
+}
+
+/* ---------- GUEST: Property page ---------- */
+function renderProperty(pid) {
+  const p = DB.find("properties", "propertyId", pid), u = me();
+  const canPreview = p && (isPublic(p) || (u && (role() === "admin" || u.userId === p.hostId)));
+  if (!p || !canPreview) { app.innerHTML = `<section class="sec wrap"><div class="empty">This listing isn't available right now.<br><br><a class="btn" href="#search">Back to search</a></div></section>`; return; }
+  if (isPublic(p) && !(u && u.userId === p.hostId) && renderProperty.last !== pid) track("view", pid);
+  renderProperty.last = pid;
+  const host = { name: p.hostName || (DB.find("users", "userId", p.hostId) || {}).name, createdAt: p.hostSince }, o = optionsOf(pid), fav = isFav(pid);
+  DB.loadPhotos(p);
+  const n = Math.max(1, p.photos.length); if (state.gal >= n) state.gal = 0;
+  const ext = [["airbnbUrl", "Continue to Airbnb"], ["bookingUrl", "Continue to Booking.com"], ["otherUrl", "Continue to other booking website"]].filter(([k]) => safeUrl(o[k]));
+  const direct = [];
+  if (o.whatsapp) direct.push(`<a class="btn solid full" data-track="whatsapp" data-pid="${pid}" href="https://wa.me/${digits(o.whatsapp)}?text=${encodeURIComponent(`Hi ${host.name || ""}, I found "${p.name}" on TrueHaven. Is it available for my dates?`)}" target="_blank" rel="noopener">WhatsApp host</a>`);
+  if (o.phone) direct.push(`<a class="btn full" data-track="phone" data-pid="${pid}" data-reveal="Phone: ${esc(prettyPhone(o.phone))}" href="tel:+${digits(o.phone)}">Call host</a>`);
+  if (o.email) direct.push(`<a class="btn full" data-track="email" data-pid="${pid}" data-reveal="Email: ${esc(o.email)}" href="mailto:${esc(o.email)}?subject=${encodeURIComponent("Enquiry about " + p.name + " (TrueHaven)")}">Email host</a>`);
+  app.innerHTML = `<section class="wrap" style="padding-top:16px">
+    ${p.status !== "approved" ? `<div class="notice" style="margin-bottom:12px">Preview only. This listing is <b>${esc(p.status)}</b> and guests can't see it yet.</div>` : ""}
+    ${p.status === "approved" && !isPublic(p) ? `<div class="notice bad" style="margin-bottom:12px">Hidden from guests: the host's subscription isn't active.</div>` : ""}
+    <a href="#search" class="linkbtn">← Back to results</a>
+    <div style="margin-top:12px">
+      <div class="ph">${photoBox(p, state.gal)}
+        <button class="heart" data-fav="${pid}" aria-pressed="${fav}" aria-label="${fav ? "Remove from saved" : "Save"}">${fav ? "♥" : "♡"}</button></div>
+      ${p.photos.length > 1 ? `<div class="thumbs">${p.photos.map((src, i) => `<button data-gal="${i}" aria-current="${i === state.gal}" aria-label="Photo ${i + 1}"><img src="${src}" alt=""></button>`).join("")}</div>` : ""}
+    </div>
+    <div class="pp">
+      <div>
+        <div class="loc">${esc(p.type)} · ${esc(p.town)}, ${esc(p.parish)}, ${C.name}</div>
+        <h1 style="margin:6px 0 8px">${esc(p.name)}</h1>
+        <div class="price">${money(p.price, "night")}</div><div class="loc">≈ ${other(p.price)} / night</div>
+        <div class="specs"><div><b>${p.bedrooms}</b>Beds</div><div><b>${p.bathrooms}</b>Baths</div><div><b>${p.maxGuests}</b>Guests</div><div><b>${esc(p.type)}</b>Type</div></div>
+        <h3 style="font-size:26px">About this stay</h3><p style="white-space:pre-line">${esc(p.description)}</p>
+        <h3 style="font-size:26px;margin-top:20px">Amenities</h3>
+        <ul class="amen">${(p.amenities || []).map(a => `<li>${esc(a)}</li>`).join("") || "<li>Ask the host</li>"}</ul>
+        <h3 style="font-size:26px;margin-top:24px">Location</h3><p>${esc(p.address || p.town)}, ${esc(p.town)}, ${esc(p.parish)}</p>
+        <div class="by" style="margin-top:18px"><span class="av">${esc(initials(host.name))}</span><span>Hosted by <b>${esc(host.name || "Host")}</b><br><span class="fine">On TrueHaven since ${host.createdAt ? fmtDate(host.createdAt) : "—"}</span></span></div>
+      </div>
+      <aside class="book" aria-label="Book with host">
+        <h3>Book with host</h3>
+        <p class="fine">TrueHaven doesn't take reservations or payments. You book and pay with the host directly.</p>
+        ${ext.length ? `<div class="lbl">Option 1 · Book online</div><div class="grp">${ext.map(([k, t]) => `<a class="btn acc full" data-track="booking" data-pid="${pid}" href="${esc(o[k])}" target="_blank" rel="noopener">${t} ↗</a>`).join("")}</div>` : ""}
+        ${direct.length ? `<div class="lbl">${ext.length ? "Option 2 · " : ""}Contact the host</div><div class="grp">${direct.join("")}</div>` : ""}
+        <div id="reveal"></div>
+        <div style="margin-top:16px;display:flex;justify-content:space-between">
+          <button class="linkbtn" data-share="${pid}">Copy link</button><button class="linkbtn" data-report="${pid}">Report listing</button></div>
+      </aside>
+    </div></section>${footer()}`;
+}
+
+/* ---------- GUEST: Favorites ---------- */
+function renderFavorites() {
+  const ids = DB.all("favorites").filter(f => f.userId === favKey()).map(f => f.propertyId);
+  const r = DB.all("properties").filter(p => ids.includes(p.propertyId) && isPublic(p));
+  app.innerHTML = `<section class="sec wrap"><div class="eyebrow">Your list</div><h2 style="margin-bottom:18px">Saved stays</h2>
+    ${me() ? "" : `<p class="fine" style="margin:-8px 0 16px">Saved on this device. <a href="#account">Sign in</a> to keep them in your account.</p>`}
+    <div class="grid">${r.map(card).join("") || `<div class="empty">Nothing saved yet. Tap ♡ on any stay to save it here.</div>`}</div></section>`;
+}
+
+/* ---------- Account (sign in / sign up / profile) ---------- */
+function renderAccount(needRole) {
+  const u = me(), a = DB.state.user;
+  if (u) {
+    const r = role(), favs = DB.all("favorites").filter(f => f.userId === u.userId).length;
+    app.innerHTML = `<section class="sec wrap" style="max-width:640px">
+      ${needRole ? `<div class="notice" style="margin-bottom:16px">That page is for ${needRole} accounts. You're signed in as a ${esc(r)}.</div>` : ""}
+      ${a && !a.emailVerified ? `<div class="notice" style="margin-bottom:16px">Please confirm your email address. <button class="linkbtn" data-verify>Send the confirmation email again</button></div>` : ""}
+      <div class="eyebrow">Account</div><h2>${esc(u.name)}</h2>
+      <div class="panel" style="margin-top:18px"><div class="r2">
+        <div><span class="f">Email</span><div>${esc(u.email)}</div></div>
+        <div><span class="f">Account type</span><div style="text-transform:capitalize">${esc(r)}</div></div>
+        <div><span class="f">Country</span><div>${esc(u.country || "—")}</div></div>
+        <div><span class="f">Member since</span><div>${fmtDate(u.createdAt)}</div></div></div></div>
+      <div class="panel">
+        ${r === "guest" ? `<p>You have ${favs} saved ${favs === 1 ? "stay" : "stays"}.</p><a class="btn" href="#favorites">View saved</a> <a class="btn" href="#host-join" style="margin-top:8px">List a property</a>` : ""}
+        ${r === "host" ? `<a class="btn solid" href="#host">Host dashboard</a> <a class="btn" href="#host-add">+ Add property</a>` : ""}
+        ${r === "admin" ? `<a class="btn solid" href="#admin">Admin dashboard</a>` : ""}
+      </div>
+      <details class="panel"><summary style="cursor:pointer;font-weight:600">Change password</summary>
+        <form class="form" id="credForm" style="margin-top:12px">
+          ${pwInput("cOld", "Current password", "current-password")}
+          ${pwInput("cNew", "New password", "new-password", pwHint)}
+          <div class="err" id="cErr" role="alert"></div>
+          <button class="btn" type="submit">Change password</button></form></details>
+      <button class="btn bad" data-logout style="margin-top:16px">Sign out</button>
+      <p class="fine" style="margin-top:18px">Prototype: listings and accounts are shared with everyone testing TrueHaven. No real bookings or payments happen here.</p></section>`;
+    return;
+  }
+  app.innerHTML = `<section class="sec wrap" style="max-width:520px">
+    ${needRole ? `<div class="notice" style="margin-bottom:16px">Please sign in with a ${needRole} account to open that page.</div>` : ""}
+    <div class="eyebrow">Welcome</div><h2>Sign in</h2>
+    <form class="form panel" id="loginForm" style="margin-top:18px">
+      <div><label class="f" for="lEmail">Email</label><input class="in" id="lEmail" type="email" autocomplete="email" required></div>
+      ${pwInput("lPass", "Password", "current-password")}
+      <div class="err" id="lErr" role="alert"></div>
+      <button class="btn solid" type="submit">Sign in</button>
+      <button type="button" class="linkbtn" data-forgot style="justify-self:start">Forgot password?</button></form>
+    <div class="panel"><h3>New here?</h3>
+      <form class="form" id="guestForm">
+        <div><label class="f" for="gName">Name</label><input class="in" id="gName" required></div>
+        <div><label class="f" for="gEmail">Email</label><input class="in" id="gEmail" type="email" autocomplete="email" required></div>
+        ${pwInput("gPass", "Password", "new-password", pwHint)}
+        <div><label class="f" for="gCountry">Country</label><input class="in" id="gCountry" placeholder="e.g. US" required></div>
+        <div class="err" id="gErr" role="alert"></div>
+        <button class="btn" type="submit">Create guest account</button></form>
+      <p class="fine" style="margin-top:12px">Own a property? <a href="#host-join">Create a host account</a>.</p></div>
+    <p class="fine">Prototype: don't use a password you use anywhere else.</p></section>`;
+}
+
+/* =========================================================
+   HOST screens
+   ========================================================= */
+function renderHostJoin() {
+  const u = me();
+  app.innerHTML = `<section class="sec wrap" style="max-width:640px">
+    <div class="eyebrow">Host registration</div><h2>List your property in ${C.name}</h2>
+    <p class="fine" style="font-size:15px;margin:10px 0 18px">${TRIAL_DAYS} days free. Then US$${PLANS.small.price}/month for 1–2 properties, or US$${PLANS.large.price}/month for 3 or more. Cancel any time.</p>
+    <form class="form panel" id="hostJoin">
+      <div><label class="f" for="jName">Full name or business name</label><input class="in" id="jName" required value="${esc(u ? u.name : "")}"></div>
+      <div class="r2"><div><label class="f" for="jEmail">Email</label><input class="in" id="jEmail" type="email" required value="${esc(u ? u.email : "")}"></div>
+        <div><label class="f" for="jPhone">Phone / WhatsApp</label><input class="in" id="jPhone" type="tel" inputmode="tel" placeholder="876 555 0100" required></div></div>
+      ${u ? "" : pwInput("jPass", "Password", "new-password", pwHint)}
+      <div><label class="f">Country</label><div class="in" style="background:var(--surface)">${C.name} (more islands coming soon)</div></div>
+      <label class="chk"><input type="checkbox" id="jTerms" required> I own or manage the properties I will list.</label>
+      <div class="err" id="jErr" role="alert"></div>
+      <button class="btn solid" type="submit">Create host account</button>
+    </form></section>`;
+}
+async function createHost(e) {
+  e.preventDefault();
+  const v = id => $("#" + id) ? $("#" + id).value.trim() : "";
+  let ph = digits(v("jPhone")); if (ph.length === 7) ph = "1876" + ph; else if (ph.length === 10) ph = "1" + ph;
+  const err = !v("jName") ? "Add your name." : !/^\S+@\S+\.\S+$/.test(v("jEmail")) ? "Add a valid email." : ph.length !== 11 ? "Add a valid phone number, e.g. 876 555 0100." : !$("#jTerms").checked ? "Please confirm you own or manage the properties." : "";
+  if (err) { $("#jErr").textContent = err; return; }
+  const btn = document.querySelector("#hostJoin button[type=submit]"); btn.disabled = true;
+  try {
+    let u = me();
+    if (!u) {
+      const pe = authRule(v("jPass"), v("jEmail")); if (pe) { $("#jErr").textContent = pe; return; }
+      DB.state.pendingProfile = true;
+      try { const cred = await DB.fx.createUserWithEmailAndPassword(DB.auth, v("jEmail"), v("jPass")); DB.fx.sendEmailVerification(cred.user).catch(() => {}); }
+      catch (x) { DB.state.pendingProfile = false; $("#jErr").textContent = authError(x); return; }
+      u = { userId: DB.state.user.uid, email: v("jEmail"), country: ACTIVE_COUNTRY, status: "active", createdAt: Date.now() };
+    }
+    const data = { userId: u.userId, name: v("jName"), email: u.email, phone: "+" + ph, accountType: "host", country: u.country || ACTIVE_COUNTRY, status: u.status || "active", createdAt: u.createdAt || Date.now() };
+    const now = Date.now();
+    try {
+      await DB.writeNow("users", data);
+      if (!subOf(u.userId)) await DB.writeNow("subscriptions", { hostId: u.userId, plan: "small", status: "trial", startedAt: now, trialEndsAt: now + TRIAL_DAYS * DAY, currentPeriodEnd: now + TRIAL_DAYS * DAY, autoRenew: true, failedAttempts: 0, history: [] });
+    } catch (x) { DB.state.pendingProfile = false; $("#jErr").textContent = "Couldn't create your host account. Please try again."; return; }
+    DB.state.pendingProfile = false;
+    await DB.waitFor(() => role() === "host" && subOf(u.userId));
+    toast(`Welcome! Your ${TRIAL_DAYS}-day free period has started.`);
+    go("host-add");
+  } finally { if (btn.isConnected) btn.disabled = false; }
+}
+
+/* ---------- Host dashboard ---------- */
+function renderHostDash() {
+  const u = me(), s = subOf(u.userId), props = hostProps(u.userId);
+  const tot = props.reduce((a, p) => { const x = stats(p.propertyId, 30); for (const k in x) a[k] += x[k]; return a; }, { view: 0, booking: 0, whatsapp: 0, phone: 0, email: 0 });
+  const daysLeft = t => Math.max(0, Math.ceil((t - Date.now()) / DAY));
+  const plan = PLANS[planFor(u.userId)];
+  const good = hostInGoodStanding(u.userId);
+  let subLine = "";
+  if (!s) subLine = `No subscription.`;
+  else if (s.status === "trial") subLine = `Free period: <b>${daysLeft(s.trialEndsAt)} days left</b> (ends ${fmtDate(s.trialEndsAt)}). ${s.card ? "You'll be charged automatically after." : "Add a payment method to keep your listings live after."}`;
+  else if (s.status === "active") subLine = `Next payment of <b>US$${plan.price}</b> on ${fmtDate(s.currentPeriodEnd)}. ${s.autoRenew ? "Renews automatically." : "Auto-renew is off."}`;
+  else if (s.status === "past_due") subLine = `Your last payment failed. Listings stay live until <b>${fmtDate(s.currentPeriodEnd + GRACE_DAYS * DAY)}</b>. Update your payment method to fix it.`;
+  else if (s.status === "cancelled") subLine = `Cancelled. Listings stay live until ${fmtDate(s.currentPeriodEnd)}.`;
+  else if (s.status === "expired") subLine = `Expired. Your listings are hidden from guests until you restart.`;
+  app.innerHTML = `<section class="sec wrap">
+    <div class="eyebrow">Host dashboard</div>
+    <div class="head"><h2>Hi, ${esc(u.name.split(" ")[0])}</h2><a class="btn solid" href="#host-add">+ Add property</a></div>
+    ${!good && props.length ? `<div class="notice bad" style="margin-bottom:14px">Your listings are hidden from guests because your subscription isn't active.</div>` : ""}
+    <div class="kpis">
+      <div class="kpi"><span>Views · 30 days</span><b>${tot.view}</b></div>
+      <div class="kpi"><span>Booking-link clicks</span><b>${tot.booking}</b></div>
+      <div class="kpi"><span>WhatsApp clicks</span><b>${tot.whatsapp}</b></div>
+      <div class="kpi"><span>Phone + email clicks</span><b>${tot.phone + tot.email}</b></div></div>
+    <div class="panel" style="margin-top:18px">
+      <div class="head" style="margin:0 0 6px"><h3 style="margin:0">Subscription</h3>${s ? `<span class="st ${s.status}">${s.status.replace("_", " ")}</span>` : ""}</div>
+      <p style="margin:0 0 6px">Plan: <b>${plan.label} · US$${plan.price}/month</b> (${props.length} ${props.length === 1 ? "property" : "properties"})</p>
+      <p style="margin:0 0 12px">${subLine}</p>
+      <p class="fine" style="margin:0 0 12px">Payment method: ${s && s.card ? esc(s.card.label) : "none yet"}</p>
+      <div class="chips">
+        <button class="btn sm solid" data-sub="card">${s && s.card ? "Update payment method" : "Add payment method"}</button>
+        ${s && (s.status === "past_due" || s.status === "expired") ? `<button class="btn sm acc" data-sub="retry">Pay now</button>` : ""}
+        ${s && ["trial", "active", "past_due"].includes(s.status) ? `<button class="btn sm" data-sub="autorenew">${s.autoRenew ? "Turn off auto-renew" : "Turn on auto-renew"}</button><button class="btn sm bad" data-sub="cancel">Cancel subscription</button>` : ""}
+        ${s && s.status === "cancelled" ? `<button class="btn sm" data-sub="resume">Resume subscription</button>` : ""}
+        <button class="btn sm" data-sub="history">Billing history</button></div>
+    </div>
+    <h3 style="font-size:28px;margin:28px 0 12px">Your properties</h3>
+    <div class="list">${props.map(p => {
+      const x = stats(p.propertyId, 30);
+      return `<div class="item"><div class="sw" style="${p.photos[0] ? `background-image:url('${p.photos[0]}')` : bg(p)}"></div>
+        <div class="mid"><b>${esc(p.name)}</b><div class="loc">${esc(p.town)}, ${esc(p.parish)} · ${money(p.price, "night")}</div>
+          <span class="st ${p.status}">${p.status}</span>${p.status === "rejected" && p.rejectReason ? `<span class="fine"> · ${esc(p.rejectReason)}</span>` : ""}
+          <div class="stats"><span><b>${x.view}</b> views</span><span><b>${x.booking}</b> booking clicks</span><span><b>${x.whatsapp}</b> WhatsApp</span><span><b>${x.phone}</b> calls</span><span><b>${x.email}</b> emails</span></div>
+          <div class="acts"><a class="btn sm" href="#stay-${p.propertyId}">View</a><a class="btn sm" href="#host-edit-${p.propertyId}">Edit</a>
+            ${p.status === "approved" ? `<button class="btn sm" data-pause="${p.propertyId}">Pause</button>` : ""}
+            ${p.status === "paused" ? `<button class="btn sm" data-unpause="${p.propertyId}">Unpause</button>` : ""}
+            <button class="btn sm bad" data-hdel="${p.propertyId}">Delete</button></div></div></div>`;
+    }).join("") || `<div class="empty" style="border:0">No properties yet. <a href="#host-add">Add your first one</a>.</div>`}</div>
+    <p class="fine" style="margin-top:12px">Views and clicks are counted when guests open your page or tap a booking or contact button.</p>
+  </section>`;
+}
+function subAction(a) {
+  const u = me(), s = subOf(u.userId); if (!s) return;
+  if (a === "card") {
+    modal(`<h3>Payment method</h3><p class="fine">Prototype: no real card is collected or charged. In the live app this opens a Stripe or PayPal payment page.</p>
+      <form class="form" id="cardForm" style="margin-top:12px">
+        <label class="chk"><input type="radio" name="pm" value="Visa ending 4242 (test)" checked> Test card · Visa ending 4242</label>
+        <label class="chk"><input type="radio" name="pm" value="PayPal (test)"> Test PayPal account</label>
+        <label class="chk"><input type="checkbox" id="pmFail"> Make the next payment fail (to test failed payments)</label>
+        <button class="btn solid" type="submit">Save payment method</button></form>`);
+  } else if (a === "retry") { const ok = charge(s, false); toast(ok ? `Payment of US$${PLANS[s.plan].price} received. Thank you!` : "Payment failed. Try another payment method."); route(); }
+  else if (a === "autorenew") { s.autoRenew = !s.autoRenew; DB.save(); toast(s.autoRenew ? "Auto-renew is on." : "Auto-renew is off."); route(); }
+  else if (a === "cancel") {
+    modal(`<h3>Cancel subscription?</h3><p>Your listings stay live until ${fmtDate(s.status === "trial" ? s.trialEndsAt : s.currentPeriodEnd)}, then they're hidden from guests. You can resume any time before then.</p>
+      <div class="chips" style="margin-top:14px"><button class="btn bad" data-sub="cancel-yes">Cancel subscription</button><button class="btn" data-close>Keep it</button></div>`);
+  } else if (a === "cancel-yes") { if (s.status === "trial") s.currentPeriodEnd = s.trialEndsAt; s.status = "cancelled"; s.autoRenew = false; DB.save(); toast("Subscription cancelled."); route(); }
+  else if (a === "resume") { s.status = s.trialEndsAt > Date.now() ? "trial" : "active"; s.autoRenew = true; DB.save(); toast("Subscription resumed."); route(); }
+  else if (a === "history") {
+    modal(`<h3>Billing history</h3>${s.history.length ? `<div class="list">${s.history.map(h => `<div class="item"><div class="mid"><b>US$${h.amount}</b><span class="fine">${fmtDate(h.at)}</span></div><span class="st ${h.result === "paid" ? "active" : "cancelled"}">${h.result}</span></div>`).join("")}</div>` : `<p class="fine">No payments yet. You're in your free period.</p>`}`);
+  }
+}
+
+/* ---------- Add / edit property wizard ---------- */
+let wiz = null;
+const STEPS = ["Basics", "Details", "Photos", "Booking & contact", "Review"];
+function renderWizard(editId) {
+  const u = me();
+  if (!wiz || wiz.editId !== editId || wiz.owner !== u.userId) {
+    const p = editId ? DB.find("properties", "propertyId", editId) : null;
+    if (editId && (!p || (p.hostId !== u.userId && role() !== "admin"))) { app.innerHTML = `<section class="sec wrap"><div class="empty">Listing not found.</div></section>`; return; }
+    if (p && !p._full) { DB.loadPhotos(p); app.innerHTML = `<section class="sec wrap"><div class="empty">Loading photos…</div></section>`; setTimeout(() => { if (location.hash === "#host-edit-" + editId) renderWizard(editId); }, 500); return; }
+    const o = p ? optionsOf(editId) : { whatsapp: u.phone || "", phone: u.phone || "", email: u.email || "" };
+    wiz = { editId, owner: u.userId, step: 0, p: p ? JSON.parse(JSON.stringify(p, (k, val) => k[0] === "_" ? undefined : val)) : { name: "", parish: "", town: "", address: "", type: "Villa", bedrooms: 1, bathrooms: 1, maxGuests: 2, price: "", amenities: [], description: "", photos: [] },
+      o: Object.assign({ airbnbUrl: "", bookingUrl: "", otherUrl: "", whatsapp: "", phone: "", email: "" }, JSON.parse(JSON.stringify(o))) };
+    wiz.on = { airbnb: !!wiz.o.airbnbUrl, booking: !!wiz.o.bookingUrl, other: !!wiz.o.otherUrl, whatsapp: !!wiz.o.whatsapp, phone: !!wiz.o.phone, email: !!wiz.o.email };
+  }
+  const w = wiz, p = w.p, o = w.o, st = w.step;
+  let body = "";
+  if (st === 0) body = `
+    <div><label class="f" for="wName">Property name</label><input class="in" id="wName" maxlength="60" placeholder="e.g. Ocean View Villa" value="${esc(p.name)}"></div>
+    <div class="r2"><div><label class="f" for="wParish">${C.regionLabel}</label><select class="in" id="wParish"><option value="">Choose…</option>${C.regions.map(r => `<option ${p.parish === r ? "selected" : ""}>${r}</option>`).join("")}</select></div>
+      <div><label class="f" for="wTown">Town / area</label><input class="in" id="wTown" maxlength="40" placeholder="e.g. Montego Bay" value="${esc(p.town)}"></div></div>
+    <div><label class="f" for="wAddr">Address or location</label><input class="in" id="wAddr" maxlength="120" placeholder="Street or landmark (shown to guests)" value="${esc(p.address)}"></div>
+    <div><label class="f" for="wType">Property type</label><select class="in" id="wType">${TYPES.map(t => `<option ${p.type === t ? "selected" : ""}>${t}</option>`).join("")}</select></div>`;
+  if (st === 1) body = `
+    <div class="r3"><div><label class="f" for="wBeds">Bedrooms</label><input class="in" id="wBeds" type="number" min="0" inputmode="numeric" value="${p.bedrooms}"></div>
+      <div><label class="f" for="wBaths">Bathrooms</label><input class="in" id="wBaths" type="number" min="0" inputmode="numeric" value="${p.bathrooms}"></div>
+      <div><label class="f" for="wGuests">Max guests</label><input class="in" id="wGuests" type="number" min="1" inputmode="numeric" value="${p.maxGuests}"></div></div>
+    <div><label class="f" for="wPrice">Price per night (US$)</label><input class="in" id="wPrice" type="number" min="1" inputmode="numeric" placeholder="e.g. 150" value="${esc(p.price)}">
+      <p class="fine" id="wPriceJ" style="margin:4px 0 0">${p.price ? "≈ " + C.symbol + Math.round(p.price * C.rateFromUSD).toLocaleString("en-US") + " per night" : "Guests can switch to J$ prices."}</p></div>
+    <div><span class="f">Amenities</span><div class="chips">${AMENITIES.map(a => `<label><input type="checkbox" data-amen value="${esc(a)}" ${p.amenities.includes(a) ? "checked" : ""}> ${esc(a)}</label>`).join("")}</div></div>
+    <div><label class="f" for="wDesc">Description</label><textarea class="in" id="wDesc" maxlength="1200" placeholder="What makes your place special? Nearby beaches, sights, transport…">${esc(p.description)}</textarea></div>`;
+  if (st === 2) body = `
+    <p class="fine" style="margin:0">Add up to 8 photos. The first one is the cover. Clear, bright photos get more clicks.</p>
+    <div class="pics">${p.photos.map((src, i) => `<div><img src="${src}" alt="Photo ${i + 1}">${i === 0 ? `<span class="cover">Cover</span>` : `<button type="button" class="mk" data-cover="${i}">Make cover</button>`}<button type="button" data-delpic="${i}" aria-label="Remove photo">×</button></div>`).join("")}</div>
+    ${p.photos.length < 8 ? `<label class="btn" for="wPics" style="cursor:pointer;position:relative;overflow:hidden">Upload photos<input type="file" id="wPics" accept="image/*" multiple style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0"></label>
+      <p class="fine" id="wPicMsg" role="status" style="margin:0"></p>` : ""}
+    ${p.photos.length ? "" : `<div class="ph" style="max-width:320px"><div style="position:absolute;inset:0;${bg(p)}"></div><div class="nm">No photos yet</div></div><p class="fine">Without photos, guests see a coloured block like this.</p>`}`;
+  if (st === 3) {
+    const row = (k, label, key, ph, type) => `<div class="optrow"><label class="chk"><input type="checkbox" data-opt="${k}" ${w.on[k] ? "checked" : ""}> ${label}</label>
+      ${w.on[k] ? `<input class="in" data-optv="${key}" type="${type}" placeholder="${ph}" value="${esc(o[key])}">` : ""}</div>`;
+    body = `<p class="fine" style="margin:0">Choose how guests can book or reach you. Pick at least one.</p>
+      ${row("airbnb", "Airbnb", "airbnbUrl", "https://www.airbnb.com/rooms/…", "url")}
+      ${row("booking", "Booking.com", "bookingUrl", "https://www.booking.com/hotel/jm/…", "url")}
+      ${row("other", "Other booking website", "otherUrl", "https://…", "url")}
+      ${row("whatsapp", "WhatsApp", "whatsapp", "876 555 0100", "tel")}
+      ${row("phone", "Phone", "phone", "876 555 0100", "tel")}
+      ${row("email", "Email", "email", "you@example.com", "email")}`;
+  }
+  if (st === 4) {
+    const on = Object.keys(w.on).filter(k => w.on[k]);
+    body = `<div class="ph" style="max-width:420px">${photoBox(p)}</div>
+      <div><div class="price">${money(+p.price || 0, "night")}</div><h3 style="font-family:var(--font-body);font-size:18px;font-weight:600;margin:4px 0">${esc(p.name)}</h3>
+      <div class="loc">${esc(p.type)} · ${esc(p.town)}, ${esc(p.parish)} · ${esc(p.address)}</div>
+      <div class="facts"><span>${p.bedrooms} bd</span><span>${p.bathrooms} ba</span><span>Up to ${p.maxGuests} guests</span><span>${p.photos.length} photos</span></div>
+      <p class="fine">${p.amenities.map(esc).join(" · ") || "No amenities selected"}</p>
+      <p class="fine">Booking & contact: ${on.join(", ")}</p></div>
+      ${TEST_AUTO_APPROVE ? `<div class="notice ok">Testing mode: your listing is approved instantly and goes live as soon as you submit. In the real app, our team reviews it first.</div>` : `<div class="notice">After you submit, our team reviews the listing. It goes live once approved, usually within 24 hours.${w.editId && p.status === "approved" ? " Editing a live listing sends it back for review." : ""}</div>`}`;
+  }
+  app.innerHTML = `<section class="sec wrap" style="max-width:720px">
+    <a class="linkbtn" href="#${role() === "admin" ? "admin-properties" : "host"}">← ${role() === "admin" ? "Back to listings" : "Back to dashboard"}</a>
+    <div class="eyebrow" style="margin-top:14px">${w.editId ? "Edit property" : "+ Add property"} · Step ${st + 1} of ${STEPS.length}</div>
+    <h2>${STEPS[st]}</h2>
+    <div class="steps">${STEPS.map((_, i) => `<i class="${i <= st ? "on" : ""}"></i>`).join("")}</div>
+    <form class="form" id="wizForm" novalidate>${body}
+      <div class="err" id="wErr" role="alert"></div>
+      <div class="r2">${st ? `<button class="btn" type="button" data-wback>Back</button>` : `<span></span>`}
+        <button class="btn solid" type="submit">${st === STEPS.length - 1 ? (role() === "admin" ? "Save changes" : TEST_AUTO_APPROVE ? "Publish listing" : "Submit for approval") : "Continue"}</button></div>
+    </form></section>`;
+}
+function wizCollect() {
+  const w = wiz, p = w.p, v = id => $("#" + id) ? $("#" + id).value.trim() : null;
+  if (w.step === 0) { p.name = v("wName"); p.parish = v("wParish"); p.town = v("wTown"); p.address = v("wAddr"); p.type = v("wType"); }
+  if (w.step === 1) { p.bedrooms = +v("wBeds") || 0; p.bathrooms = +v("wBaths") || 0; p.maxGuests = +v("wGuests") || 0; p.price = v("wPrice") === "" ? "" : +v("wPrice"); p.description = v("wDesc");
+    p.amenities = [...document.querySelectorAll("[data-amen]:checked")].map(x => x.value); }
+  if (w.step === 3) document.querySelectorAll("[data-optv]").forEach(i => w.o[i.dataset.optv] = i.value.trim());
+}
+function wizValidate() {
+  const w = wiz, p = w.p, o = w.o;
+  if (w.step === 0) return !p.name ? "Add a property name." : !p.parish ? `Choose a ${C.regionLabel.toLowerCase()}.` : !p.town ? "Add the town or area." : "";
+  if (w.step === 1) return p.maxGuests < 1 ? "Max guests must be at least 1." : !(p.price > 0) ? "Add a nightly price." : "";
+  if (w.step === 3) {
+    const on = w.on; if (!Object.values(on).some(Boolean)) return "Choose at least one booking or contact option.";
+    for (const [k, key, name] of [["airbnb", "airbnbUrl", "Airbnb"], ["booking", "bookingUrl", "Booking.com"], ["other", "otherUrl", "booking website"]])
+      if (on[k] && !safeUrl(o[key])) return `Add a full ${name} link starting with https://`;
+    for (const k of ["whatsapp", "phone"]) if (on[k]) { let d = digits(o[k]); if (d.length === 7) d = "1876" + d; else if (d.length === 10) d = "1" + d; if (d.length < 10) return `Add a valid ${k === "whatsapp" ? "WhatsApp" : "phone"} number.`; o[k] = "+" + d; }
+    if (on.email && !/^\S+@\S+\.\S+$/.test(o.email)) return "Add a valid email address.";
+  }
+  return "";
+}
+function wizSubmit() {
+  const w = wiz, u = me(), isAdmin = role() === "admin";
+  const o = {}; ["airbnbUrl", "bookingUrl", "otherUrl", "whatsapp", "phone", "email"].forEach(k => o[k] = "");
+  const map = { airbnb: "airbnbUrl", booking: "bookingUrl", other: "otherUrl", whatsapp: "whatsapp", phone: "phone", email: "email" };
+  Object.keys(map).forEach(k => { if (w.on[k]) o[map[k]] = w.o[map[k]]; });
+  if (w.editId) {
+    const status = isAdmin ? w.p.status : (TEST_AUTO_APPROVE ? "approved" : "pending");
+    const orig = DB.find("properties", "propertyId", w.editId);
+    const photosChanged = JSON.stringify(orig._full || orig.photos) !== JSON.stringify(w.p.photos);
+    Object.assign(orig, w.p, { status, updatedAt: Date.now() }); if (photosChanged) DB.markPhotos(orig);
+    const ex = optionsOf(w.editId); if (ex.propertyId) Object.assign(ex, o); else DB.insert("options", Object.assign({ propertyId: w.editId }, o));
+    DB.save();
+  } else {
+    const pid = DB.id("p");
+    DB.insert("properties", Object.assign({}, w.p, { propertyId: pid, hostId: u.userId, hostName: u.name, hostSince: u.createdAt || Date.now(), country: ACTIVE_COUNTRY, status: TEST_AUTO_APPROVE ? "approved" : "pending", autoApproved: TEST_AUTO_APPROVE, featured: false, sample: false, live: false, createdAt: Date.now(), pair: Math.floor(Math.random() * PAIRS.length) }));
+    DB.insert("options", Object.assign({ propertyId: pid }, o));
+  }
+  wiz = null; tickSubscriptions();
+  toast(isAdmin ? "Listing saved." : TEST_AUTO_APPROVE ? "Approved instantly for testing. Your listing is live!" : "Submitted for approval. We'll review it soon.");
+  go(isAdmin ? "admin-properties" : "host");
+}
+/* Turn any phone photo into a small JPEG. Tries the fastest decoder first, then falls back. */
+function loadImage(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => res({ img, done: () => URL.revokeObjectURL(url) });
+    img.onerror = () => { URL.revokeObjectURL(url);
+      const r = new FileReader(); r.onload = () => { const i2 = new Image(); i2.onload = () => res({ img: i2, done() {} }); i2.onerror = rej; i2.src = r.result; }; r.onerror = rej; r.readAsDataURL(file); };
+    img.src = url;
+  });
+}
+async function shrink(file) {
+  try {
+    let src, w, h, done = () => {};
+    if (window.createImageBitmap) {
+      try { src = await createImageBitmap(file, { imageOrientation: "from-image" }); w = src.width; h = src.height; done = () => src.close && src.close(); } catch (e) { src = null; }
+    }
+    if (!src) { const r = await loadImage(file); src = r.img; w = r.img.naturalWidth; h = r.img.naturalHeight; done = r.done; }
+    if (!w || !h) throw new Error("empty");
+    const scale = Math.min(1, 1200 / Math.max(w, h)), c = document.createElement("canvas");
+    c.width = Math.round(w * scale); c.height = Math.round(h * scale);
+    c.getContext("2d").drawImage(src, 0, 0, c.width, c.height); done();
+    let q = .72, out = c.toDataURL("image/jpeg", q);
+    while (out.length > 700000 && q > .4) { q -= .1; out = c.toDataURL("image/jpeg", q); } // keep each photo well under the database's 1 MB limit
+    return out;
+  } catch (e) { return null; }
+}
+
+/* =========================================================
+   ADMIN screens
+   ========================================================= */
+const ADMIN_TABS = [["dashboard", "Dashboard"], ["properties", "Properties"], ["hosts", "Hosts"], ["guests", "Guests"], ["reports", "Reports"], ["subs", "Subscriptions"], ["analytics", "Analytics"]];
+let propFilter = "pending";
+function renderAdmin(tab) {
+  if (!ADMIN_TABS.some(t => t[0] === tab)) tab = "dashboard";
+  const openReports = DB.all("reports").filter(r => r.status === "open").length;
+  const pending = DB.all("properties").filter(p => p.status === "pending").length;
+  const tabs = `<nav class="tabs" aria-label="Admin">${ADMIN_TABS.map(([k, t]) => `<a href="#${k === "dashboard" ? "admin" : "admin-" + k}" ${k === tab ? 'aria-current="page"' : ""}>${t}${k === "properties" && pending ? ` (${pending})` : ""}${k === "reports" && openReports ? ` (${openReports})` : ""}</a>`).join("")}</nav>`;
+  const views = { dashboard: adminDash, properties: adminProps, hosts: () => adminUsers("host"), guests: () => adminUsers("guest"), reports: adminReports, subs: adminSubs, analytics: adminAnalytics };
+  app.innerHTML = `<section class="sec wrap"><div class="eyebrow">Admin · ${C.name}</div><h2>${ADMIN_TABS.find(t => t[0] === tab)[1]}</h2>${tabs}${views[tab]()}</section>`;
+}
+const userName = id => (DB.find("users", "userId", id) || {}).name || "Unknown";
+function propItem(p, actions) {
+  return `<div class="item"><div class="sw" style="${p.photos[0] ? `background-image:url('${p.photos[0]}')` : bg(p)}"></div>
+    <div class="mid"><b>${esc(p.name)}</b><div class="loc">${esc(p.town)}, ${esc(p.parish)} · ${esc(p.type)} · US$${p.price}/night</div>
+      <div class="fine">Host: ${esc(p.sample ? "Sample listing" : (p.hostName || userName(p.hostId)))} · Added ${fmtDate(p.createdAt)}</div>
+      <span class="st ${p.status}">${p.status}</span>${p.status === "approved" && !isPublic(p) ? ` <span class="st expired">hidden · subscription</span>` : ""}
+      <div class="acts">${actions}</div></div></div>`;
+}
+function adminDash() {
+  const P = DB.all("properties"), U = DB.all("users"), S = DB.all("subscriptions"), x = stats(null, 30);
+  const paying = S.filter(s => s.status === "active" || s.status === "past_due");
+  const mrr = paying.reduce((a, s) => a + PLANS[s.plan].price, 0);
+  const pend = P.filter(p => p.status === "pending");
+  return `<div class="kpis">
+      <div class="kpi"><span>Live listings</span><b>${P.filter(isPublic).length}</b></div>
+      <div class="kpi"><span>Pending approval</span><b>${pend.length}</b></div>
+      <div class="kpi"><span>Hosts</span><b>${U.filter(u => u.accountType === "host" && u.status !== "deleted").length}</b></div>
+      <div class="kpi"><span>Guests</span><b>${U.filter(u => u.accountType === "guest" && u.status !== "deleted").length}</b></div>
+      <div class="kpi"><span>Monthly revenue</span><b>US$${mrr}</b></div>
+      <div class="kpi"><span>In free period</span><b>${S.filter(s => s.status === "trial").length}</b></div>
+      <div class="kpi"><span>Views · 30 days</span><b>${x.view}</b></div>
+      <div class="kpi"><span>Contact + booking clicks</span><b>${x.booking + x.whatsapp + x.phone + x.email}</b></div></div>
+    <h3 style="font-size:26px;margin:26px 0 12px">Waiting for approval</h3>
+    <div class="list">${pend.map(p => propItem(p, approveBtns(p))).join("") || `<div class="empty" style="border:0">Nothing waiting. All caught up.</div>`}</div>
+    <div class="panel" style="margin-top:16px"><h3 style="font-size:20px">Sample listings</h3>
+      <p class="fine" style="margin:0 0 10px">${P.filter(p => p.sample).length ? `${P.filter(p => p.sample).length} sample listings are showing so the app doesn't look empty while testing.` : "No sample listings. Add a few so testers have something to browse."}</p>
+      <div class="chips">${P.filter(p => p.sample).length ? `<button class="btn sm bad" data-samples="off">Remove sample listings</button>` : `<button class="btn sm solid" data-samples="on">Add sample listings</button>`}</div></div>
+    ${S.some(s => s.status === "past_due") ? `<div class="notice" style="margin-top:16px">${S.filter(s => s.status === "past_due").length} host(s) have a failed payment. <a href="#admin-subs">Review subscriptions</a>.</div>` : ""}`;
+}
+function approveBtns(p) {
+  return `<a class="btn sm" href="#stay-${p.propertyId}">Preview</a>
+    ${p.status !== "approved" ? `<button class="btn sm acc" data-approve="${p.propertyId}">Approve</button>` : ""}
+    ${p.status === "pending" ? `<button class="btn sm bad" data-reject="${p.propertyId}">Reject</button>` : ""}
+    <a class="btn sm" href="#host-edit-${p.propertyId}">Edit</a>
+    ${p.status !== "removed" ? `<button class="btn sm bad" data-remove="${p.propertyId}">Remove</button>` : ""}
+    <button class="btn sm" data-feature="${p.propertyId}">${p.featured ? "Unfeature" : "Feature"}</button>`;
+}
+function adminProps() {
+  const P = DB.all("properties"), counts = s => P.filter(p => s === "all" || p.status === s).length;
+  const list = P.filter(p => propFilter === "all" || p.status === propFilter).sort((a, b) => b.createdAt - a.createdAt);
+  return `<div class="chips" style="margin-bottom:14px">${["pending", "approved", "paused", "rejected", "removed", "all"].map(s => `<button class="btn sm ${propFilter === s ? "solid" : ""}" data-pf="${s}">${s} (${counts(s)})</button>`).join("")}</div>
+    <div class="list">${list.map(p => propItem(p, approveBtns(p))).join("") || `<div class="empty" style="border:0">No ${propFilter} listings.</div>`}</div>`;
+}
+function adminUsers(type) {
+  const U = DB.all("users").filter(u => u.accountType === type && u.status !== "deleted");
+  return `<div class="list">${U.map(u => {
+    const s = subOf(u.userId), n = hostProps(u.userId).length, f = DB.all("favorites").filter(x => x.userId === u.userId).length;
+    return `<div class="item"><span class="av">${esc(initials(u.name))}</span><div class="mid"><b>${esc(u.name)}</b>
+      <div class="loc">${esc(u.email)} · ${esc(u.country)} · joined ${fmtDate(u.createdAt)}</div>
+      <span class="st ${u.status}">${u.status}</span>
+      ${type === "host" ? ` <span class="fine">${n} ${n === 1 ? "property" : "properties"} · subscription: ${s ? s.status.replace("_", " ") : "none"}</span>` : ` <span class="fine">${f} saved</span>`}
+      <div class="acts">${u.status === "active" ? `<button class="btn sm bad" data-suspend="${u.userId}">Suspend</button>` : `<button class="btn sm" data-activate="${u.userId}">Reactivate</button>`}
+        <button class="btn sm bad" data-deluser="${u.userId}">Delete</button></div></div></div>`;
+  }).join("") || `<div class="empty" style="border:0">No ${type}s yet.</div>`}</div>
+  ${type === "host" ? `<p class="fine" style="margin-top:10px">Suspending a host hides all of their listings from guests.</p>` : ""}`;
+}
+function adminReports() {
+  const R = DB.all("reports").slice().sort((a, b) => (a.status === "open" ? -1 : 1) - (b.status === "open" ? -1 : 1) || b.at - a.at);
+  return `<div class="list">${R.map(r => {
+    const p = DB.find("properties", "propertyId", r.propertyId) || { name: "(deleted listing)" };
+    return `<div class="item"><div class="mid"><b>${esc(r.reason)}</b><div class="loc">On <a href="#stay-${r.propertyId}">${esc(p.name)}</a> · by ${esc(r.by === "device" ? "a visitor" : userName(r.by))} · ${fmtDate(r.at)}</div>
+      ${r.details ? `<p style="margin:6px 0">${esc(r.details)}</p>` : ""}<span class="st ${r.status === "open" ? "pending" : "paused"}">${r.status}</span>
+      ${r.status === "open" ? `<div class="acts"><button class="btn sm" data-dismiss="${r.reportId}">Dismiss</button><button class="btn sm bad" data-rremove="${r.reportId}">Remove listing</button></div>` : ""}</div></div>`;
+  }).join("") || `<div class="empty" style="border:0">No reports.</div>`}</div>`;
+}
+function adminSubs() {
+  const S = DB.all("subscriptions");
+  return `<p class="fine" style="margin-top:0">Prices: 1–2 properties US$${PLANS.small.price}/month, 3+ properties US$${PLANS.large.price}/month. ${TRIAL_DAYS}-day free period, ${GRACE_DAYS}-day grace after a failed payment.</p>
+  <div class="list">${S.map(s => {
+    const u = DB.find("users", "userId", s.hostId) || {};
+    const end = s.status === "trial" ? s.trialEndsAt : s.currentPeriodEnd;
+    return `<div class="item"><div class="mid"><b>${esc(u.name || "Deleted host")}</b>
+      <div class="loc">${PLANS[s.plan].label} · US$${PLANS[s.plan].price}/month · ${s.card ? esc(s.card.label) : "no payment method"}</div>
+      <div class="fine">${s.status === "trial" ? "Free period ends" : s.status === "expired" ? "Ended" : "Current period ends"} ${fmtDate(end)} · auto-renew ${s.autoRenew ? "on" : "off"}${s.failedAttempts ? ` · ${s.failedAttempts} failed payment(s)` : ""}</div>
+      <span class="st ${s.status}">${s.status.replace("_", " ")}</span>
+      <div class="acts"><button class="btn sm" data-adm-sub="paid" data-sid="${s.hostId}">Record payment</button>
+        <button class="btn sm" data-adm-sub="fail" data-sid="${s.hostId}">Simulate failed payment</button>
+        <button class="btn sm" data-adm-sub="extend" data-sid="${s.hostId}">+30 days free</button>
+        ${s.status !== "cancelled" && s.status !== "expired" ? `<button class="btn sm bad" data-adm-sub="cancel" data-sid="${s.hostId}">Cancel</button>` : ""}
+        <button class="btn sm" data-adm-sub="expire" data-sid="${s.hostId}">Force expire</button></div></div></div>`;
+  }).join("") || `<div class="empty" style="border:0">No subscriptions.</div>`}</div>`;
+}
+function adminAnalytics() {
+  const E = DB.all("events"), since = Date.now() - 30 * DAY, recent = E.filter(e => e.at >= since);
+  const x = stats(null, 30);
+  const days = [...Array(14)].map((_, i) => { const s = Date.now() - (13 - i) * DAY, d0 = new Date(s); d0.setHours(0, 0, 0, 0); const a = +d0, b = a + DAY; return recent.filter(e => e.type === "view" && e.at >= a && e.at < b).length; });
+  const maxD = Math.max(1, ...days);
+  const src = {}; recent.filter(e => e.type === "view").forEach(e => src[e.source] = (src[e.source] || 0) + 1);
+  const srcRows = Object.entries(src).sort((a, b) => b[1] - a[1]), maxS = Math.max(1, ...srcRows.map(r => r[1]));
+  const byProp = DB.all("properties").map(p => ({ p, s: stats(p.propertyId, 30) })).filter(r => r.s.view).sort((a, b) => b.s.view - a.s.view);
+  const ctr = x.view ? Math.round((x.booking + x.whatsapp + x.phone + x.email) / x.view * 100) : 0;
+  return `<div class="kpis">
+      <div class="kpi"><span>Property views</span><b>${x.view}</b></div>
+      <div class="kpi"><span>Booking-link clicks</span><b>${x.booking}</b></div>
+      <div class="kpi"><span>WhatsApp clicks</span><b>${x.whatsapp}</b></div>
+      <div class="kpi"><span>Phone clicks</span><b>${x.phone}</b></div>
+      <div class="kpi"><span>Email clicks</span><b>${x.email}</b></div>
+      <div class="kpi"><span>Contact rate</span><b>${ctr}%</b></div></div>
+    <p class="fine">Last 30 days.</p>
+    <div class="panel" style="margin-top:16px"><h3>Views per day · last 14 days</h3>
+      <div class="spark" role="img" aria-label="Daily views, last 14 days: ${days.join(", ")}">${days.map(v => `<i style="height:${Math.round(v / maxD * 100)}%" title="${v} views"></i>`).join("")}</div></div>
+    <div class="panel"><h3>Traffic source</h3><div class="bars">${srcRows.map(([k, v]) => `<div class="bar"><span>${esc(k)}</span><div class="t"><i style="width:${v / maxS * 100}%"></i></div><em>${v}</em></div>`).join("") || `<p class="fine">No traffic yet.</p>`}</div></div>
+    <div class="panel"><h3>By property</h3><div class="list" style="border:0">${byProp.map(({ p, s }) => `<div class="item" style="padding-inline:0"><div class="mid"><b>${esc(p.name)}</b>
+      <div class="stats"><span><b>${s.view}</b> views</span><span><b>${s.booking}</b> booking</span><span><b>${s.whatsapp}</b> WhatsApp</span><span><b>${s.phone}</b> phone</span><span><b>${s.email}</b> email</span></div></div></div>`).join("") || `<p class="fine">No views yet.</p>`}</div></div>`;
+}
+
+/* =========================================================
+   AUTH helpers. Firebase Authentication stores and checks
+   passwords securely, sends reset and confirmation emails,
+   and slows down repeated wrong guesses.
+   ========================================================= */
+function authRule(pw, email) {
+  if (!pw || pw.length < 8) return "Use at least 8 characters for your password.";
+  if (!/[A-Za-z]/.test(pw) || !/\d/.test(pw)) return "Your password needs at least one letter and one number.";
+  const name = String(email || "").split("@")[0].toLowerCase();
+  if (name.length > 3 && pw.toLowerCase().includes(name)) return "Don't use your email name in your password.";
+  if (/^(password|12345678|qwerty12|abc12345)/i.test(pw)) return "That password is too easy to guess.";
+  return "";
+}
+function authError(e) {
+  const c = (e && e.code) || "";
+  if (c.includes("invalid-credential") || c.includes("wrong-password") || c.includes("user-not-found") || c.includes("invalid-login")) return "Email or password is wrong.";
+  if (c.includes("too-many-requests")) return "Too many tries. Wait a few minutes, or reset your password.";
+  if (c.includes("email-already-in-use")) return "That email already has an account. Sign in instead.";
+  if (c.includes("invalid-email")) return "Add a valid email.";
+  if (c.includes("weak-password")) return "That password is too weak.";
+  if (c.includes("network")) return "No connection. Check your internet and try again.";
+  if (c.includes("user-disabled")) return "This account is disabled. Contact TrueHaven support.";
+  if (c.includes("requires-recent-login")) return "For your security, sign out and back in, then try again.";
+  return "Something went wrong. Please try again.";
+}
+const pwHint = `<p class="fine" style="margin:4px 0 0">At least 8 characters, with a letter and a number.</p>`;
+function pwInput(id, label, ac, extra) {
+  return `<div><div style="display:flex;justify-content:space-between;align-items:end"><label class="f" for="${id}">${label}</label>
+    <button type="button" class="linkbtn" data-showpw="${id}" style="font-size:12px;margin-bottom:4px">Show</button></div>
+    <input class="in" id="${id}" type="password" autocomplete="${ac}" required>${extra || ""}</div>`;
+}
+function openForgot(prefill) {
+  modal(`<h3>Reset your password</h3>
+    <form class="form" id="forgotForm"><p class="fine" style="margin:0">Enter your account email and we'll email you a link to choose a new password.</p>
+      <div><label class="f" for="fEmail">Email</label><input class="in" id="fEmail" type="email" autocomplete="email" required value="${esc(prefill || "")}"></div>
+      <div class="err" id="fErr" role="alert"></div>
+      <button class="btn solid" type="submit">Send reset link</button></form>`);
+}
+async function forgotSubmit() {
+  const email = $("#fEmail").value.trim();
+  if (!/^\S+@\S+\.\S+$/.test(email)) { $("#fErr").textContent = "Add a valid email."; return; }
+  try { await DB.fx.sendPasswordResetEmail(DB.auth, email); } catch (e) { if (!/user-not-found/.test(e.code || "")) { $("#fErr").textContent = authError(e); return; } }
+  modal(`<h3>Check your email</h3><p>If an account exists for <b>${esc(email)}</b>, we've sent a link to reset your password. Check your spam folder if you don't see it.</p>
+    <button class="btn solid" data-close style="margin-top:10px">OK</button>`);
+}
+
+/* =========================================================
+   Events
+   ========================================================= */
+function refreshResults() {
+  if (!$("#grid") || (location.hash || "#home").slice(1) !== "search") return;
+  const r = results(), q = state.q;
+  $("#grid").innerHTML = r.map(card).join("") || `<div class="empty">No stays match these filters yet. Try another parish or a wider price range.</div>`;
+  const h = document.querySelector(".head h2"), c = document.querySelector(".head .count");
+  if (h) h.textContent = "Stays in " + (q.town || q.parish || C.name);
+  if (c) c.textContent = `${r.length} ${r.length === 1 ? "property" : "properties"}`;
+}
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.dataset.q) { state.q[t.dataset.q] = t.dataset.q === "guests" ? (+t.value || 0) : t.value; refreshResults(); return; }
+  if (t.dataset.opt) { wizCollect(); wiz.on[t.dataset.opt] = t.checked; renderWizard(wiz.editId); return; }
+  if (t.id === "wPics") {
+    const room = 8 - wiz.p.photos.length, all = [...t.files];
+    const files = all.filter(f => !f.type || f.type.startsWith("image/") || /\.(jpe?g|png|gif|webp|heic|heif)$/i.test(f.name)).slice(0, room);
+    const msg = $("#wPicMsg");
+    if (!files.length) { if (msg) msg.textContent = all.length ? "That file isn't a photo. Choose a JPG or PNG image." : ""; return; }
+    if (msg) msg.textContent = `Adding ${files.length} photo${files.length > 1 ? "s" : ""}…`;
+    Promise.all(files.map(shrink)).then(list => {
+      const ok = list.filter(Boolean), bad = list.length - ok.length;
+      ok.forEach(u => wiz.p.photos.push(u));
+      renderWizard(wiz.editId);
+      const m = $("#wPicMsg"), extra = all.length > room ? ` Only ${room} more could be added (8 max).` : "";
+      if (m) m.textContent = bad ? `${ok.length} added. ${bad} couldn't be opened. iPhone HEIC photos may need to be shared as JPG (Settings › Camera › Formats › Most Compatible).${extra}` : `${ok.length} photo${ok.length > 1 ? "s" : ""} added.${extra}`;
+      if (ok.length) toast(`${ok.length} photo${ok.length > 1 ? "s" : ""} added`);
+    });
+  }
+
+});
+document.addEventListener("input", e => {
+  if (e.target.id === "wPrice") { const v = +e.target.value; $("#wPriceJ").textContent = v > 0 ? "≈ " + C.symbol + Math.round(v * C.rateFromUSD).toLocaleString("en-US") + " per night" : "Guests can switch to J$ prices."; }
+});
+document.addEventListener("click", e => {
+  const t = e.target, c = s => t.closest(s);
+  let el;
+  if ((el = c("[data-close]")) || t.id === "scrim") { closeModal(); return; }
+  if ((el = c("[data-showpw]"))) { const i = $("#" + el.dataset.showpw); const show = i.type === "password"; i.type = show ? "text" : "password"; el.textContent = show ? "Hide" : "Show"; return; }
+  if ((el = c("[data-forgot]"))) { openForgot($("#lEmail") ? $("#lEmail").value.trim() : ""); return; }
+  if ((el = c("[data-cur]"))) {
+    state.cur = el.dataset.cur; state.q.min = state.q.max = "";
+    document.querySelectorAll("[data-cur]").forEach(b => b.setAttribute("aria-pressed", b === el)); route(); return; }
+  if ((el = c("[data-fav]"))) { e.preventDefault(); e.stopPropagation();
+    const on = toggleFav(el.dataset.fav); el.setAttribute("aria-pressed", on); el.textContent = on ? "♥" : "♡"; toast(on ? "Saved" : "Removed from saved");
+    if ((location.hash || "").slice(1) === "favorites") route(); return; }
+  if ((el = c("[data-parish]"))) { state.q.parish = el.dataset.parish; go("search"); return; }
+  if ((el = c("[data-clear]"))) { state.q = { parish: "", town: "", guests: 0, min: "", max: "", type: "", sort: state.q.sort }; renderSearch(); return; }
+  if ((el = c("[data-gal]"))) { state.gal = +el.dataset.gal; renderProperty((location.hash.split("stay-")[1])); return; }
+  if ((el = c("[data-track]"))) {
+    track(el.dataset.track, el.dataset.pid);
+    if (el.dataset.reveal) { $("#reveal").innerHTML = `<div class="reveal">${el.dataset.reveal}</div>`; }
+    return; }
+  if ((el = c("[data-share]"))) { const url = location.href; try { navigator.clipboard.writeText(url).then(() => toast("Link copied"), () => toast(url)); } catch (_) { toast(url); } return; }
+  if ((el = c("[data-report]"))) {
+    modal(`<h3>Report this listing</h3><form class="form" id="reportForm" data-pid="${el.dataset.report}">
+      <div><label class="f" for="rpReason">Reason</label><select class="in" id="rpReason"><option>Photos don't match</option><option>Wrong price or details</option><option>Suspected scam</option><option>Property doesn't exist</option><option>Host asked for payment off-platform before viewing</option><option>Other</option></select></div>
+      <div><label class="f" for="rpText">Details (optional)</label><textarea class="in" id="rpText" maxlength="500"></textarea></div>
+      <button class="btn solid" type="submit">Send report</button></form>`); return; }
+  if ((el = c("[data-logout]"))) { wiz = null; DB.fx.signOut(DB.auth).then(() => { toast("Signed out"); go("home"); }); return; }
+  if ((el = c("[data-verify]"))) { DB.fx.sendEmailVerification(DB.auth.currentUser).then(() => toast("Confirmation email sent. Check your inbox."), () => toast("Couldn't send it right now. Try again later.")); return; }
+  if ((el = c("[data-samples]"))) { el.disabled = true; samples(el.dataset.samples === "on"); return; }
+  // host
+  if ((el = c("[data-sub]"))) { subAction(el.dataset.sub); return; }
+  if ((el = c("[data-pause]"))) { DB.update("properties", "propertyId", el.dataset.pause, { status: "paused" }); toast("Listing paused. Guests can't see it."); route(); return; }
+  if ((el = c("[data-unpause]"))) { DB.update("properties", "propertyId", el.dataset.unpause, { status: "approved" }); toast("Listing is live again."); route(); return; }
+  if ((el = c("[data-hdel]"))) {
+    const p = DB.find("properties", "propertyId", el.dataset.hdel);
+    modal(`<h3>Delete “${esc(p.name)}”?</h3><p>It will be removed from TrueHaven. This can't be undone.</p><div class="chips" style="margin-top:12px"><button class="btn bad" data-hdel-yes="${p.propertyId}">Delete</button><button class="btn" data-close>Keep it</button></div>`); return; }
+  if ((el = c("[data-hdel-yes]"))) { DB.update("properties", "propertyId", el.dataset.hdelYes, { status: "removed" }); tickSubscriptions(); toast("Listing deleted."); route(); return; }
+  if ((el = c("[data-wback]"))) { wizCollect(); wiz.step--; renderWizard(wiz.editId); window.scrollTo(0, 0); return; }
+  if ((el = c("[data-delpic]"))) { wiz.p.photos.splice(+el.dataset.delpic, 1); renderWizard(wiz.editId); return; }
+  if ((el = c("[data-cover]"))) { const i = +el.dataset.cover; wiz.p.photos.unshift(wiz.p.photos.splice(i, 1)[0]); renderWizard(wiz.editId); return; }
+  // admin
+  if ((el = c("[data-approve]"))) { DB.update("properties", "propertyId", el.dataset.approve, { status: "approved", rejectReason: "", reviewedAt: Date.now() }); toast("Approved. It's now visible to guests."); route(); return; }
+  if ((el = c("[data-reject]"))) {
+    modal(`<h3>Reject listing</h3><form class="form" id="rejectForm" data-pid="${el.dataset.reject}"><div><label class="f" for="rjText">Reason (the host will see this)</label>
+      <textarea class="in" id="rjText" required placeholder="e.g. Please add real photos of the property."></textarea></div><button class="btn bad" type="submit">Reject listing</button></form>`); return; }
+  if ((el = c("[data-remove]"))) { DB.update("properties", "propertyId", el.dataset.remove, { status: "removed" }); toast("Listing removed."); route(); return; }
+  if ((el = c("[data-feature]"))) { const p = DB.find("properties", "propertyId", el.dataset.feature); p.featured = !p.featured; DB.save(); route(); return; }
+  if ((el = c("[data-pf]"))) { propFilter = el.dataset.pf; route(); return; }
+  if ((el = c("[data-suspend]"))) { DB.update("users", "userId", el.dataset.suspend, { status: "suspended" }); toast("User suspended."); route(); return; }
+  if ((el = c("[data-activate]"))) { DB.update("users", "userId", el.dataset.activate, { status: "active" }); toast("User reactivated."); route(); return; }
+  if ((el = c("[data-deluser]"))) {
+    const u = DB.find("users", "userId", el.dataset.deluser);
+    modal(`<h3>Delete ${esc(u.name)}?</h3><p>This deletes the account${u.accountType === "host" ? ", removes their listings and ends their subscription" : ""}. It can't be undone.</p>
+      <div class="chips" style="margin-top:12px"><button class="btn bad" data-deluser-yes="${u.userId}">Delete account</button><button class="btn" data-close>Cancel</button></div>`); return; }
+  if ((el = c("[data-deluser-yes]"))) {
+    const id = el.dataset.deluserYes;
+    DB.all("properties").filter(p => p.hostId === id).forEach(p => p.status = "removed");
+    const s = subOf(id); if (s) { s.status = "cancelled"; s.autoRenew = false; s.currentPeriodEnd = Date.now() - DAY; }
+    DB.update("users", "userId", id, { status: "deleted" }); toast("Account deleted."); route(); return; }
+  if ((el = c("[data-dismiss]"))) { DB.update("reports", "reportId", el.dataset.dismiss, { status: "dismissed" }); route(); return; }
+  if ((el = c("[data-rremove]"))) { const r = DB.find("reports", "reportId", el.dataset.rremove); DB.update("properties", "propertyId", r.propertyId, { status: "removed" }); r.status = "resolved"; DB.save(); toast("Listing removed."); route(); return; }
+  if ((el = c("[data-adm-sub]"))) {
+    const s = DB.find("subscriptions", "hostId", el.dataset.sid), a = el.dataset.admSub;
+    if (a === "paid") { s.card = s.card || { label: "Recorded by admin" }; s.card.failNext = false; charge(s, false); toast("Payment recorded."); }
+    if (a === "fail") { charge(s, false, true); toast("Failed payment simulated. Host is now past due."); }
+    if (a === "extend") { if (s.status === "trial" || s.status === "expired") { s.status = "trial"; s.trialEndsAt = Math.max(Date.now(), s.trialEndsAt) + 30 * DAY; s.currentPeriodEnd = s.trialEndsAt; } else s.currentPeriodEnd += 30 * DAY; DB.save(); toast("Added 30 free days."); }
+    if (a === "cancel") { s.status = "cancelled"; s.autoRenew = false; if (s.currentPeriodEnd < s.trialEndsAt) s.currentPeriodEnd = s.trialEndsAt; DB.save(); toast("Subscription cancelled."); }
+    if (a === "expire") { s.status = "expired"; s.currentPeriodEnd = Date.now() - DAY; DB.save(); toast("Subscription expired. Host's listings are hidden."); }
+    route(); return; }
+});
+document.addEventListener("submit", e => {
+  const f = e.target; e.preventDefault();
+  if (f.id === "heroSearch") { go("search"); return; }
+  if (f.id === "loginForm") { loginSubmit(); return; }
+  if (f.id === "guestForm") { guestSubmit(); return; }
+  if (f.id === "forgotForm") { forgotSubmit(); return; }
+  if (f.id === "hostJoin") { createHost(e); return; }
+  if (f.id === "credForm") { credSubmit(); return; }
+  if (f.id === "wizForm") {
+    wizCollect(); const err = wizValidate(); if (err) { $("#wErr").textContent = err; return; }
+    if (wiz.step < STEPS.length - 1) { wiz.step++; renderWizard(wiz.editId); window.scrollTo(0, 0); } else wizSubmit(); return; }
+  if (f.id === "cardForm") {
+    const s = subOf(me().userId), pm = f.querySelector("input[name=pm]:checked").value;
+    s.card = { label: pm, failNext: $("#pmFail").checked }; DB.save();
+    if (s.status === "past_due" || s.status === "expired") { const ok = charge(s, false); toast(ok ? "Payment method saved and payment received." : "Payment method saved, but the payment failed."); }
+    else toast("Payment method saved.");
+    route(); return; }
+  if (f.id === "reportForm") {
+    DB.insert("reports", { reportId: DB.id("r"), propertyId: f.dataset.pid, reason: $("#rpReason").value, details: $("#rpText").value.trim().slice(0, 500), by: me() ? me().userId : "visitor", byName: me() ? me().name : "", at: Date.now(), status: "open" });
+    closeModal(); toast("Thanks. Our team will review this listing."); return; }
+  if (f.id === "rejectForm") {
+    const why = $("#rjText").value.trim(); if (!why) return;
+    DB.update("properties", "propertyId", f.dataset.pid, { status: "rejected", rejectReason: why, reviewedAt: Date.now() }); toast("Listing rejected. The host can see why."); route(); return; }
+});
+async function loginSubmit() {
+  const email = $("#lEmail").value.trim(), pass = $("#lPass").value, btn = document.querySelector("#loginForm button[type=submit]");
+  btn.disabled = true;
+  try { await DB.fx.signInWithEmailAndPassword(DB.auth, email, pass); toast("Welcome back"); setTimeout(() => go(role() === "admin" ? "admin" : role() === "host" ? "host" : "home"), 600); }
+  catch (x) { $("#lErr").textContent = authError(x); }
+  finally { if (btn.isConnected) btn.disabled = false; }
+}
+async function guestSubmit() {
+  const n = $("#gName").value.trim(), em = $("#gEmail").value.trim(), pw = $("#gPass").value, co = $("#gCountry").value.trim();
+  const err = !n ? "Add your name." : !/^\S+@\S+\.\S+$/.test(em) ? "Add a valid email." : authRule(pw, em) || (!co ? "Add your country." : "");
+  if (err) { $("#gErr").textContent = err; return; }
+  const btn = document.querySelector("#guestForm button[type=submit]"); btn.disabled = true;
+  DB.state.pendingProfile = true;
+  try {
+    const cred = await DB.fx.createUserWithEmailAndPassword(DB.auth, em, pw);
+    DB.fx.sendEmailVerification(cred.user).catch(() => {});
+    await DB.writeNow("users", { userId: cred.user.uid, name: n, email: em, accountType: "guest", country: co.toUpperCase().slice(0, 30), status: "active", createdAt: Date.now() });
+    await DB.waitFor(() => DB.find("users", "userId", cred.user.uid));
+    toast("Account created. Check your email to confirm it."); go("home");
+  } catch (x) { $("#gErr").textContent = authError(x); }
+  finally { DB.state.pendingProfile = false; if (btn.isConnected) btn.disabled = false; }
+}
+async function credSubmit() {
+  const old = $("#cOld").value, np = $("#cNew").value, user = DB.auth.currentUser;
+  const re = authRule(np, user.email); if (re) { $("#cErr").textContent = re; return; }
+  try {
+    await DB.fx.reauthenticateWithCredential(user, DB.fx.EmailAuthProvider.credential(user.email, old));
+    await DB.fx.updatePassword(user, np); toast("Password changed."); route();
+  } catch (x) { $("#cErr").textContent = /invalid-credential|wrong-password/.test(x.code || "") ? "Current password is wrong." : authError(x); }
+}
+/* Admin: add or remove a few clearly-labelled sample listings so the app isn't empty while testing. */
+async function samples(on) {
+  if (!on) { for (const p of DB.all("properties").filter(p => p.sample)) await DB.remove("properties", "propertyId", p.propertyId); toast("Sample listings removed."); route(); return; }
+  const now = Date.now(), S = [
+    ["Ocean View Villa", "St James", "Montego Bay", "Villa", 420, 4, 4, 8, ["Wi-Fi","Air conditioning","Pool","Sea view","Kitchen","Parking"], "A hillside villa with wide sea views over Montego Bay. Infinity pool and a large deck for sunset dinners.", 1],
+    ["Cliffside Sunset Villa", "Westmoreland", "Negril", "Villa", 540, 4, 4, 8, ["Wi-Fi","Pool","Sea view","Beach access"], "Private steps down to the water on Negril's West End cliffs.", 2],
+    ["Seven Mile Guesthouse", "Westmoreland", "Negril", "Guesthouse", 95, 1, 1, 2, ["Wi-Fi","Beach access","Breakfast included"], "Simple, friendly rooms across the road from Seven Mile Beach.", 3],
+    ["Blue Mountain Treehouse", "Portland", "Port Antonio", "Other", 210, 2, 1, 4, ["Wi-Fi","Kitchen","Hot water"], "A raised wooden cottage in the hills above Port Antonio.", 6],
+    ["New Kingston Suites", "St Andrew", "New Kingston", "Hotel", 160, 1, 1, 2, ["Wi-Fi","Air conditioning","Pool","Workspace"], "Business-friendly suites near Emancipation Park.", 4],
+    ["Ocho Rios Bay Apartment", "St Ann", "Ocho Rios", "Apartment", 130, 2, 1, 4, ["Wi-Fi","Air conditioning","Pool","Sea view","Kitchen"], "Two-bedroom with a balcony over the bay, close to Dunn's River Falls.", 0]
+  ];
+  S.forEach((x, i) => {
+    const pid = "sample" + (i + 1);
+    DB.insert("properties", { propertyId: pid, hostId: DB.state.user.uid, hostName: "Sample host", hostSince: now, sample: true, featured: i < 3, live: true, name: "[Sample] " + x[0], parish: x[1], town: x[2], address: x[2], type: x[3], price: x[4], bedrooms: x[5], bathrooms: x[6], maxGuests: x[7], amenities: x[8], description: x[9] + " (Sample listing for testing. Not a real property.)", pair: x[10], country: ACTIVE_COUNTRY, status: "approved", createdAt: now - i * 1000, photos: [] });
+    DB.insert("options", { propertyId: pid, airbnbUrl: "https://www.airbnb.com/", bookingUrl: "", otherUrl: "", whatsapp: "", phone: "", email: "" });
+  });
+  await DB.save(); toast("Sample listings added."); route();
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("#scrim").hidden) closeModal(); });
+window.addEventListener("hashchange", () => route());
+route();
+
+</script>
+</body>
+</html>
