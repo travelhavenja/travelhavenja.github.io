@@ -35,6 +35,14 @@ header.top{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:2px}
 .seg button{border:0;background:none;padding:5px 11px;border-radius:999px;cursor:pointer;font-size:13px;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--ink-fg)}
+.buyband{background:#13261f;color:#fff;margin-top:8px}
+.buyband .eyebrow{color:#f2c38a}.buyband .fine{color:rgba(255,255,255,.75)}
+.buyband .btn.solid{background:#fff;color:#111;border-color:#fff}
+.buyband .card,.buyband .loc,.buyband .facts{color:inherit}.buyband .loc,.buyband .facts{opacity:.8}.buyband .by{border-top-color:rgba(255,255,255,.2)}
+.buyband .av{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2)}
+.hero-tabs{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.35)}
+.hero-tabs button{color:#fff;padding:7px 14px;font-size:14px}
+.hero-tabs button[aria-pressed="true"]{background:#fff;color:#111}
 .who{font-size:12px;color:var(--muted);text-align:right;line-height:1.2}
 .who b{display:block;color:var(--fg);font-size:13px}
 
@@ -250,9 +258,20 @@ const ACTIVE_COUNTRY = "JM";
 const C = COUNTRIES[ACTIVE_COUNTRY];
 
 const TYPES = ["Villa","Apartment","Hotel","Guesthouse","House","Other"];
+/* Listing modes: short stays (main focus) and homes/land for sale. */
+const SALE_TYPES = ["House","Villa","Apartment","Land","Other"];
+const modeOf = p => (p && p.mode === "sale") ? "sale" : "stay";
+const typesFor = m => m === "sale" ? SALE_TYPES : TYPES;
 const AMENITIES = ["Wi-Fi","Air conditioning","Pool","Beach access","Sea view","Kitchen","Parking","Washer","Hot water","Backup generator","Water tank","Security / gated","Airport pickup","Pet friendly","Workspace","Breakfast included"];
 const PLANS = { small: { label: "1–2 properties", price: 12 }, large: { label: "3+ properties", price: 24 } };
 const TRIAL_DAYS = 60, GRACE_DAYS = 7;
+/* One-time registration fee: due on day 52 of the free period, never charged upfront. Includes free promotion on TrueHaven's social media. */
+const REG_FEE = 5, REG_DAY = 52, REG_NOTICE_DAYS = 7;
+const regDueAt = s => s.regDueAt || ((s.startedAt || Date.now()) + REG_DAY * DAY);
+/* Price units for rent / short stays. Only one per listing. */
+const UNITS = { night: { per: "night", label: "Per night", days: 1 }, week: { per: "week", label: "Per week", days: 7 }, month: { per: "month", label: "Per month", days: 30 } };
+const unitOf = p => UNITS[p && p.priceUnit] ? p.priceUnit : "night";
+const perNight = p => (+p.price || 0) / UNITS[unitOf(p)].days;
 /* TESTING ONLY: new and edited listings go live right away so testers see the full journey.
    Set to false once the shared backend is connected and the admin reviews listings. */
 const TEST_AUTO_APPROVE = true;
@@ -270,8 +289,11 @@ function tickSubscriptions() {
   DB.all("subscriptions").forEach(s => {
     if (!DB.state.isAdmin && !(DB.state.user && s.hostId === DB.state.user.uid)) return;
     s.plan = planFor(s.hostId);
+    // registration fee: taken automatically on day 52 if a payment method is saved
+    if (!s.regPaid && now >= regDueAt(s) && s.card && s.autoRenew && !s.regTried && ["trial", "active"].includes(s.status)) { s.regTried = true; payReg(s); }
     if (s.status === "trial" && now > s.trialEndsAt) {
-      if (s.autoRenew && s.card) charge(s, true); else { s.status = s.autoRenew ? "past_due" : "expired"; }
+      if (!s.regPaid) { s.status = "past_due"; s.currentPeriodEnd = s.trialEndsAt; }
+      else if (s.autoRenew && s.card) charge(s, true); else { s.status = s.autoRenew ? "past_due" : "expired"; }
     } else if (s.status === "active" && now > s.currentPeriodEnd) {
       if (s.autoRenew) charge(s, true); else s.status = "expired";
     } else if (s.status === "cancelled" && now > s.currentPeriodEnd) {
@@ -296,6 +318,14 @@ function charge(s, auto, forceFail) {
     if (s.card) s.card.failNext = false;
     s.history.unshift({ at: Date.now(), amount, result: "failed" });
   }
+  DB.save(); return ok;
+}
+/* Simulated one-time registration fee. */
+function payReg(s, recorded) {
+  const ok = recorded || (!!s.card && !s.card.failNext);
+  s.history = s.history || [];
+  if (ok) { s.regPaid = true; s.regPaidAt = Date.now(); s.history.unshift({ at: Date.now(), amount: REG_FEE, result: "paid", note: "Registration fee" }); }
+  else { if (s.card) s.card.failNext = false; s.history.unshift({ at: Date.now(), amount: REG_FEE, result: "failed", note: "Registration fee" }); }
   DB.save(); return ok;
 }
 /* A host's listings are public only while their subscription is in good standing. */
@@ -529,7 +559,7 @@ onAuthStateChanged(auth, async u => {
    ========================================================= */
 const $ = s => document.querySelector(s);
 const app = $("#app");
-const state = { cur: "USD", q: { parish: "", town: "", guests: 0, min: "", max: "", type: "", sort: "featured" }, gal: 0 };
+const state = { cur: "USD", q: { mode: "stay", unit: "", parish: "", town: "", guests: 0, min: "", max: "", type: "", sort: "featured" }, gal: 0 };
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmtDate = t => new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 const initials = n => String(n || "?").split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase();
@@ -541,6 +571,20 @@ function money(usd, per) {
   const v = state.cur === "USD" ? usd : usd * C.rateFromUSD;
   const t = (state.cur === "USD" ? "US$" : C.symbol) + Math.round(v).toLocaleString("en-US");
   return per ? `${t} <small>/ ${per}</small>` : t;
+}
+function priceHtml(p) { return modeOf(p) === "sale" ? money(+p.price || 0) : money(+p.price || 0, UNITS[unitOf(p)].per); }
+function minStayText(p) { const n = +p.minStay || 0, u = UNITS[unitOf(p)].per; return n > 1 ? `Min ${n} ${u}s` : n === 1 ? `Min 1 ${u}` : ""; }
+function modeTabs(cls) {
+  const m = state.q.mode;
+  return `<div class="seg ${cls || ""}" role="group" aria-label="Listing type"><button type="button" data-mode="stay" aria-pressed="${m === "stay"}">Short stays</button><button type="button" data-mode="sale" aria-pressed="${m === "sale"}">Buy</button></div>`;
+}
+function acres(sq) { const a = +(sq / 43560).toFixed(2); return a + (a === 1 ? " acre" : " acres"); }
+function factsHtml(p) {
+  const f = [];
+  if (p.bedrooms) f.push(`<span>${p.bedrooms} bd</span>`); if (p.bathrooms) f.push(`<span>${p.bathrooms} ba</span>`);
+  if (modeOf(p) === "stay") { f.push(`<span>Up to ${p.maxGuests} guests</span>`); if (minStayText(p)) f.push(`<span>${minStayText(p)}</span>`); }
+  else if (p.sizeSqft) f.push(`<span>${p.type === "Land" ? acres(p.sizeSqft) : (+p.sizeSqft).toLocaleString("en-US") + " sq ft"}</span>`);
+  return f.join("");
 }
 function other(usd) { return state.cur === "USD" ? C.symbol + Math.round(usd * C.rateFromUSD).toLocaleString("en-US") : "US$" + Math.round(usd).toLocaleString("en-US"); }
 const HUES = [168, 196, 28, 12, 230, 260, 50, 120, 92, 210];
@@ -573,7 +617,7 @@ function go(h) { if (location.hash === "#" + h) route(); else location.hash = h;
 /* ---------- navigation ---------- */
 function nav(cur) {
   const r = role();
-  let items = [["home", "⌂", "Explore"], ["search", "⌕", "Search"], ["favorites", "♡", "Saved"], ["account", "○", "Account"]];
+  let items = [["home", "⌂", "Explore"], ["search", "⌕", "Stays"], ["buy", "◈", "Buy"], ["favorites", "♡", "Saved"], ["account", "○", "Account"]];
   if (r === "host") items = [["home", "⌂", "Explore"], ["host", "▦", "Dashboard"], ["host-add", "+", "Add"], ["account", "○", "Account"]];
   if (r === "admin") items = [["home", "⌂", "Explore"], ["admin", "▦", "Admin"], ["admin-properties", "☰", "Listings"], ["account", "○", "Account"]];
   $("#bnav").innerHTML = items.map(([h, i, t]) => `<a href="#${h}" ${cur === h || (cur.startsWith(h + "-") && h !== "host" && h !== "admin") ? 'aria-current="page"' : ""}><span class="i" aria-hidden="true">${i}</span>${t}</a>`).join("");
@@ -597,7 +641,7 @@ function route(soft) {
   if (need && role() !== need && !(rest[0] === "edit" && role() === "admin")) { renderAccount(need); nav("account"); if (!soft) window.scrollTo(0, 0); return; }
   if (h === "host-join" && role() === "host") { location.hash = "host"; return; }
   if (h === "home") renderHome();
-  else if (h === "search") renderSearch();
+  else if (h === "search" || h === "buy") { const m = h === "buy" ? "sale" : "stay"; if (state.q.mode !== m) Object.assign(state.q, { mode: m, unit: "", type: "", min: "", max: "", guests: 0, sort: "featured" }); renderSearch(); }
   else if (base === "stay") renderProperty(arg);
   else if (h === "favorites") renderFavorites();
   else if (h === "account") renderAccount();
@@ -615,13 +659,13 @@ function card(p) {
   const host = { name: p.hostName || (DB.find("users", "userId", p.hostId) || {}).name };
   const fav = isFav(p.propertyId);
   return `<a class="card" href="#stay-${p.propertyId}">
-    <div class="ph">${photoBox(p)}${p.featured ? `<span class="badge">Featured</span>` : ""}
+    <div class="ph">${photoBox(p)}${p.featured ? `<span class="badge">Featured</span>` : modeOf(p) === "sale" ? `<span class="badge">For sale</span>` : ""}
       <button class="heart" data-fav="${p.propertyId}" aria-pressed="${fav}" aria-label="${fav ? "Remove from saved" : "Save"}">${fav ? "♥" : "♡"}</button></div>
     <div class="meta">
-      <div class="price">${money(p.price, "night")}</div>
+      <div class="price">${priceHtml(p)}</div>
       <h3>${esc(p.name)}</h3>
       <div class="loc">${esc(p.town)}, ${esc(p.parish)} · ${esc(p.type)}</div>
-      <div class="facts"><span>${p.bedrooms} bd</span><span>${p.bathrooms} ba</span><span>Up to ${p.maxGuests} guests</span></div>
+      <div class="facts">${factsHtml(p)}</div>
       <div class="by"><span class="av">${esc(initials(host.name))}</span><span>${esc(host.name || "Host")}</span><span class="ver">✓ Approved</span></div>
     </div></a>`;
 }
@@ -630,46 +674,53 @@ function card(p) {
 function searchFields(prefix, compact) {
   const q = state.q;
   const parishOpts = `<option value="">All parishes</option>` + C.regions.map(r => `<option ${q.parish === r ? "selected" : ""}>${r}</option>`).join("");
-  const typeOpts = `<option value="">Any type</option>` + TYPES.map(t => `<option ${q.type === t ? "selected" : ""}>${t}</option>`).join("");
+  const sale = q.mode === "sale", per = sale ? "" : " / " + (q.unit ? UNITS[q.unit].per : "night");
+  const unitSel = sale ? "" : `<option value="">Any</option>` + Object.keys(UNITS).map(k => `<option value="${k}" ${q.unit === k ? "selected" : ""}>${UNITS[k].label}</option>`).join("");
+  const typeOpts = `<option value="">Any type</option>` + typesFor(q.mode).map(t => `<option ${q.type === t ? "selected" : ""}>${t}</option>`).join("");
   const sym = state.cur === "USD" ? "US$" : C.symbol;
   if (compact) return `
     <div class="field"><label for="${prefix}parish">${C.regionLabel}</label><select id="${prefix}parish" data-q="parish">${parishOpts}</select></div>
     <div class="field"><label for="${prefix}town">Town / area</label><input id="${prefix}town" data-q="town" placeholder="e.g. Negril" value="${esc(q.town)}"></div>
-    <div class="field"><label for="${prefix}guests">Guests</label><input id="${prefix}guests" data-q="guests" type="number" min="0" inputmode="numeric" placeholder="Any" value="${q.guests || ""}"></div>
+    ${sale ? "" : `<div class="field"><label for="${prefix}guests">Guests</label><input id="${prefix}guests" data-q="guests" type="number" min="0" inputmode="numeric" placeholder="Any" value="${q.guests || ""}"></div>`}
     <div class="field"><label for="${prefix}type">Property type</label><select id="${prefix}type" data-q="type">${typeOpts}</select></div>
-    <div class="field"><label for="${prefix}max">Max / night (${sym})</label><input id="${prefix}max" data-q="max" type="number" min="0" inputmode="numeric" placeholder="Any" value="${esc(q.max)}"></div>`;
+    ${sale ? "" : `<div class="field"><label for="${prefix}unit">Price type</label><select id="${prefix}unit" data-q="unit">${unitSel}</select></div>`}
+    <div class="field"${sale ? ' style="grid-column:span 2"' : ""}><label for="${prefix}max">Max price${per} (${sym})</label><input id="${prefix}max" data-q="max" type="number" min="0" inputmode="numeric" placeholder="Any" value="${esc(q.max)}"></div>`;
   return `<div class="form">
     <div class="r2"><div><label class="f" for="${prefix}parish">${C.regionLabel}</label><select class="in" id="${prefix}parish" data-q="parish">${parishOpts}</select></div>
       <div><label class="f" for="${prefix}town">Town / area</label><input class="in" id="${prefix}town" data-q="town" placeholder="e.g. Negril" value="${esc(q.town)}"></div></div>
-    <div class="r2"><div><label class="f" for="${prefix}guests">Guests</label><input class="in" id="${prefix}guests" data-q="guests" type="number" min="0" inputmode="numeric" placeholder="Any" value="${q.guests || ""}"></div>
-      <div><label class="f" for="${prefix}type">Property type</label><select class="in" id="${prefix}type" data-q="type">${typeOpts}</select></div></div>
-    <div class="r2"><div><label class="f" for="${prefix}min">Min / night (${sym})</label><input class="in" id="${prefix}min" data-q="min" type="number" min="0" inputmode="numeric" placeholder="0" value="${esc(q.min)}"></div>
-      <div><label class="f" for="${prefix}max">Max / night (${sym})</label><input class="in" id="${prefix}max" data-q="max" type="number" min="0" inputmode="numeric" placeholder="Any" value="${esc(q.max)}"></div></div>
+    <div class="r2">${sale ? "" : `<div><label class="f" for="${prefix}guests">Guests</label><input class="in" id="${prefix}guests" data-q="guests" type="number" min="0" inputmode="numeric" placeholder="Any" value="${q.guests || ""}"></div>`}
+      <div${sale ? ' style="grid-column:1/-1"' : ""}><label class="f" for="${prefix}type">Property type</label><select class="in" id="${prefix}type" data-q="type">${typeOpts}</select></div></div>
+    ${sale ? "" : `<div><label class="f" for="${prefix}unit">Price type</label><select class="in" id="${prefix}unit" data-q="unit">${unitSel}</select>${q.unit ? "" : `<p class="fine" style="margin:4px 0 0">Weekly and monthly prices are compared as a nightly amount.</p>`}</div>`}
+    <div class="r2"><div><label class="f" for="${prefix}min">Min price${per} (${sym})</label><input class="in" id="${prefix}min" data-q="min" type="number" min="0" inputmode="numeric" placeholder="0" value="${esc(q.min)}"></div>
+      <div><label class="f" for="${prefix}max">Max price${per} (${sym})</label><input class="in" id="${prefix}max" data-q="max" type="number" min="0" inputmode="numeric" placeholder="Any" value="${esc(q.max)}"></div></div>
     <button class="btn linkbtn" type="button" data-clear style="justify-self:start">Clear filters</button></div>`;
 }
 function results() {
   const q = state.q, toUsd = v => state.cur === "USD" ? +v : +v / C.rateFromUSD;
-  let r = DB.all("properties").filter(isPublic).filter(p =>
+  const cmp = p => (q.mode === "sale" || q.unit) ? (+p.price || 0) : perNight(p);
+  let r = DB.all("properties").filter(isPublic).filter(p => modeOf(p) === q.mode &&
     (!q.parish || p.parish === q.parish) &&
     (!q.town || (p.town + " " + p.address).toLowerCase().includes(q.town.trim().toLowerCase())) &&
-    (!q.guests || p.maxGuests >= +q.guests) &&
+    (q.mode === "sale" || !q.guests || p.maxGuests >= +q.guests) &&
     (!q.type || p.type === q.type) &&
-    (q.min === "" || p.price >= toUsd(q.min)) &&
-    (q.max === "" || p.price <= toUsd(q.max)));
+    (q.mode === "sale" || !q.unit || unitOf(p) === q.unit) &&
+    (q.min === "" || cmp(p) >= toUsd(q.min)) &&
+    (q.max === "" || cmp(p) <= toUsd(q.max)));
   const s = q.sort;
-  r.sort((a, b) => s === "lo" ? a.price - b.price : s === "hi" ? b.price - a.price : s === "guests" ? b.maxGuests - a.maxGuests : (!!b.featured - !!a.featured) || b.createdAt - a.createdAt);
+  r.sort((a, b) => s === "lo" ? cmp(a) - cmp(b) : s === "hi" ? cmp(b) - cmp(a) : s === "guests" ? b.maxGuests - a.maxGuests : (!!b.featured - !!a.featured) || b.createdAt - a.createdAt);
   return r;
 }
 
 /* ---------- GUEST: Home ---------- */
 function renderHome() {
-  const live = DB.all("properties").filter(isPublic);
+  const all = DB.all("properties").filter(isPublic), live = all.filter(p => modeOf(p) === "stay"), forSale = all.filter(p => modeOf(p) === "sale");
   const feat = live.filter(p => p.featured).slice(0, 3);
+  if (state.q.mode !== "stay") Object.assign(state.q, { mode: "stay", unit: "", type: "", min: "", max: "", guests: 0, sort: "featured" });
   const parishes = [...new Set(live.map(p => p.parish))];
   app.innerHTML = `
   <section class="hero"><div class="wrap">
-    <div class="eyebrow" style="color:#fff;opacity:.9">Jamaica · Villas, apartments, guesthouses</div>
-    <h1>Stay in Jamaica, straight from the host.</h1>
+    <div class="eyebrow" style="color:#fff;opacity:.9">Jamaica · Rent or short stays</div>
+    <h1>Rent or short stays in Jamaica, straight from the host.</h1>
     <p>Find a place, then book through the host's Airbnb or Booking.com page, or contact them directly on WhatsApp, phone or email.</p>
     <form class="search" id="heroSearch" role="search">${searchFields("h", true)}<button class="go" type="submit">Search stays</button></form>
   </div></section>
@@ -681,32 +732,39 @@ function renderHome() {
     <div class="eyebrow">Browse by ${C.regionLabel.toLowerCase()}</div><h2 style="margin-bottom:16px">Where to stay</h2>
     <div class="chips">${parishes.map(p => `<button class="btn sm" data-parish="${esc(p)}">${esc(p)} · ${live.filter(x => x.parish === p).length}</button>`).join("")}</div>
   </section>
+  <section class="sec buyband"><div class="wrap">
+    <div class="eyebrow">TrueHaven Buy</div>
+    <div class="head"><div><h2>Looking to buy a home?</h2><p class="fine" style="font-size:15px;max-width:48ch;margin:8px 0 0">Houses, villas, apartments and land for sale across Jamaica, listed by owners and agents.</p></div>
+      <a class="btn solid" href="#buy">Browse homes for sale${forSale.length ? ` (${forSale.length})` : ""}</a></div>
+    ${forSale.length ? `<div class="grid">${forSale.slice(0, 3).map(card).join("")}</div>` : ""}
+  </div></section>
   <section class="sec" style="background:var(--surface)"><div class="wrap">
-    <div class="eyebrow">For property owners</div><h2>List your property in Jamaica</h2>
-    <p class="fine" style="font-size:15px;max-width:52ch;margin:10px 0 18px">Guests find you here, then book through your own Airbnb or Booking.com page, or contact you directly. ${TRIAL_DAYS} days free, then US$${PLANS.small.price}/month for 1–2 properties or US$${PLANS.large.price}/month for 3 or more.</p>
+    <div class="eyebrow">For hosts, owners and agents</div><h2>List your property in Jamaica</h2>
+    <p class="fine" style="font-size:15px;max-width:52ch;margin:10px 0 18px">List short stays or homes for sale. Guests and buyers contact you directly, or book through your own Airbnb or Booking.com page. ${TRIAL_DAYS} days free. A one-time US$${REG_FEE} registration fee is due on day ${REG_DAY} and includes free promotion on our social media. From day ${TRIAL_DAYS}: US$${PLANS.small.price}/month for 1–2 properties or US$${PLANS.large.price}/month for 3 or more.</p>
     <a class="btn solid" href="${role() === "host" ? "#host-add" : "#host-join"}">${role() === "host" ? "+ Add property" : "Become a host"}</a>
   </div></section>
   ${footer()}`;
 }
 function footer() {
   return `<footer><div class="wrap"><a class="logo" href="#home" style="font-size:22px">TrueHaven <span>Caribbean</span></a>
-    <p style="max-width:56ch">A directory of stays in Jamaica. TrueHaven does not process reservations or payments: the host handles availability, booking, payment, cancellations and communication.</p>
+    <p style="max-width:56ch">A directory of short stays and homes for sale in Jamaica. TrueHaven does not process reservations, sales or payments: hosts, owners and agents handle everything directly with you.</p>
     <p class="fine">Prototype 0 · Sample data only · Launching in ${C.name}, more islands later.</p></div></footer>`;
 }
 
 /* ---------- GUEST: Search results ---------- */
 function renderSearch() {
-  const r = results(), q = state.q, active = ["parish", "town", "guests", "min", "max", "type"].filter(k => q[k]).length;
+  const r = results(), q = state.q, active = ["parish", "town", "guests", "min", "max", "type", "unit"].filter(k => q[k]).length;
   app.innerHTML = `<section class="sec wrap">
-    <div class="head"><div><h2>Stays in ${esc(q.town || q.parish || C.name)}</h2><p class="count">${r.length} ${r.length === 1 ? "property" : "properties"}</p></div>
+    ${q.mode === "sale" ? `<div class="eyebrow">TrueHaven Buy</div>` : `<div class="eyebrow">Rent or short stays</div>`}
+    <div class="head"><div><h2>${q.mode === "sale" ? "Homes for sale in" : "Stays in"} ${esc(q.town || q.parish || C.name)}</h2><p class="count">${r.length} ${r.length === 1 ? "property" : "properties"}</p></div>
       <label class="fine" style="display:flex;gap:8px;align-items:center">Sort
         <select class="in" style="width:auto;padding:7px 9px" data-q="sort">
           <option value="featured" ${q.sort === "featured" ? "selected" : ""}>Featured</option>
           <option value="lo" ${q.sort === "lo" ? "selected" : ""}>Price, low to high</option>
           <option value="hi" ${q.sort === "hi" ? "selected" : ""}>Price, high to low</option>
-          <option value="guests" ${q.sort === "guests" ? "selected" : ""}>Most guests</option></select></label></div>
+          ${q.mode === "sale" ? "" : `<option value="guests" ${q.sort === "guests" ? "selected" : ""}>Most guests</option>`}</select></label></div>
     <details class="filters" ${active ? "" : "open"}><summary>Filters${active ? ` (${active})` : ""}</summary>${searchFields("s", false)}</details>
-    <div class="grid" id="grid">${r.map(card).join("") || `<div class="empty">No stays match these filters yet. Try another parish or a wider price range.</div>`}</div>
+    <div class="grid" id="grid">${r.map(card).join("") || `<div class="empty">No ${q.mode === "sale" ? "homes for sale" : "stays"} match these filters yet. Try another parish or a wider price range.</div>`}</div>
   </section>${footer()}`;
 }
 
@@ -720,11 +778,13 @@ function renderProperty(pid) {
   const host = { name: p.hostName || (DB.find("users", "userId", p.hostId) || {}).name, createdAt: p.hostSince }, o = optionsOf(pid), fav = isFav(pid);
   DB.loadPhotos(p);
   const n = Math.max(1, p.photos.length); if (state.gal >= n) state.gal = 0;
-  const ext = [["airbnbUrl", "Continue to Airbnb"], ["bookingUrl", "Continue to Booking.com"], ["otherUrl", "Continue to other booking website"]].filter(([k]) => safeUrl(o[k]));
+  const sale = modeOf(p) === "sale", who = sale ? "seller" : "host";
+  const ext = (sale ? [["otherUrl", "View on the seller's website"]] : [["airbnbUrl", "Continue to Airbnb"], ["bookingUrl", "Continue to Booking.com"], ["otherUrl", "Continue to other booking website"]]).filter(([k]) => safeUrl(o[k]));
   const direct = [];
-  if (o.whatsapp) direct.push(`<a class="btn solid full" data-track="whatsapp" data-pid="${pid}" href="https://wa.me/${digits(o.whatsapp)}?text=${encodeURIComponent(`Hi ${host.name || ""}, I found "${p.name}" on TrueHaven. Is it available for my dates?`)}" target="_blank" rel="noopener">WhatsApp host</a>`);
-  if (o.phone) direct.push(`<a class="btn full" data-track="phone" data-pid="${pid}" data-reveal="Phone: ${esc(prettyPhone(o.phone))}" href="tel:+${digits(o.phone)}">Call host</a>`);
-  if (o.email) direct.push(`<a class="btn full" data-track="email" data-pid="${pid}" data-reveal="Email: ${esc(o.email)}" href="mailto:${esc(o.email)}?subject=${encodeURIComponent("Enquiry about " + p.name + " (TrueHaven)")}">Email host</a>`);
+  const waText = sale ? `Hi ${host.name || ""}, I saw "${p.name}" for sale on TrueHaven. Is it still available? I'd like to arrange a viewing.` : `Hi ${host.name || ""}, I found "${p.name}" on TrueHaven. Is it available for my dates?`;
+  if (o.whatsapp) direct.push(`<a class="btn solid full" data-track="whatsapp" data-pid="${pid}" href="https://wa.me/${digits(o.whatsapp)}?text=${encodeURIComponent(waText)}" target="_blank" rel="noopener">WhatsApp ${who}</a>`);
+  if (o.phone) direct.push(`<a class="btn full" data-track="phone" data-pid="${pid}" data-reveal="Phone: ${esc(prettyPhone(o.phone))}" href="tel:+${digits(o.phone)}">Call ${who}</a>`);
+  if (o.email) direct.push(`<a class="btn full" data-track="email" data-pid="${pid}" data-reveal="Email: ${esc(o.email)}" href="mailto:${esc(o.email)}?subject=${encodeURIComponent("Enquiry about " + p.name + " (TrueHaven)")}">Email ${who}</a>`);
   app.innerHTML = `<section class="wrap" style="padding-top:16px">
     ${p.status !== "approved" ? `<div class="notice" style="margin-bottom:12px">Preview only. This listing is <b>${esc(p.status)}</b> and guests can't see it yet.</div>` : ""}
     ${p.status === "approved" && !isPublic(p) ? `<div class="notice bad" style="margin-bottom:12px">Hidden from guests: the host's subscription isn't active.</div>` : ""}
@@ -736,21 +796,25 @@ function renderProperty(pid) {
     </div>
     <div class="pp">
       <div>
-        <div class="loc">${esc(p.type)} · ${esc(p.town)}, ${esc(p.parish)}, ${C.name}</div>
+        <div class="loc">${sale ? "For sale · " : ""}${esc(p.type)} · ${esc(p.town)}, ${esc(p.parish)}, ${C.name}</div>
         <h1 style="margin:6px 0 8px">${esc(p.name)}</h1>
-        <div class="price">${money(p.price, "night")}</div><div class="loc">≈ ${other(p.price)} / night</div>
-        <div class="specs"><div><b>${p.bedrooms}</b>Beds</div><div><b>${p.bathrooms}</b>Baths</div><div><b>${p.maxGuests}</b>Guests</div><div><b>${esc(p.type)}</b>Type</div></div>
-        <h3 style="font-size:26px">About this stay</h3><p style="white-space:pre-line">${esc(p.description)}</p>
+        <div class="price">${priceHtml(p)}</div><div class="loc">≈ ${other(p.price)}${sale ? "" : " / " + UNITS[unitOf(p)].per}${!sale && minStayText(p) ? ` · <b>Minimum stay:</b> ${minStayText(p).replace("Min ", "")}` : ""}</div>
+        <div class="specs"><div><b>${p.bedrooms || "—"}</b>Beds</div><div><b>${p.bathrooms || "—"}</b>Baths</div>${sale ? `<div><b>${p.sizeSqft ? (p.type === "Land" ? (p.sizeSqft / 43560).toFixed(2).replace(/0+$/, "").replace(/\.$/, "") + " ac" : (+p.sizeSqft).toLocaleString("en-US")) : "—"}</b>${p.type === "Land" ? "Size" : "Sq ft"}</div>` : `<div><b>${p.maxGuests}</b>Guests</div>`}<div><b>${esc(p.type)}</b>Type</div></div>
+        <h3 style="font-size:26px">${sale ? "About this property" : "About this stay"}</h3><p style="white-space:pre-line">${esc(p.description)}</p>
         <h3 style="font-size:26px;margin-top:20px">Amenities</h3>
         <ul class="amen">${(p.amenities || []).map(a => `<li>${esc(a)}</li>`).join("") || "<li>Ask the host</li>"}</ul>
         <h3 style="font-size:26px;margin-top:24px">Location</h3><p>${esc(p.address || p.town)}, ${esc(p.town)}, ${esc(p.parish)}</p>
-        <div class="by" style="margin-top:18px"><span class="av">${esc(initials(host.name))}</span><span>Hosted by <b>${esc(host.name || "Host")}</b><br><span class="fine">On TrueHaven since ${host.createdAt ? fmtDate(host.createdAt) : "—"}</span></span></div>
+        <div class="by" style="margin-top:18px"><span class="av">${esc(initials(host.name))}</span><span>${sale ? "Listed by" : "Hosted by"} <b>${esc(host.name || "Host")}</b><br><span class="fine">On TrueHaven since ${host.createdAt ? fmtDate(host.createdAt) : "—"}</span></span></div>
       </div>
-      <aside class="book" aria-label="Book with host">
-        <h3>Book with host</h3>
-        <p class="fine">TrueHaven doesn't take reservations or payments. You book and pay with the host directly.</p>
-        ${ext.length ? `<div class="lbl">Option 1 · Book online</div><div class="grp">${ext.map(([k, t]) => `<a class="btn acc full" data-track="booking" data-pid="${pid}" href="${esc(o[k])}" target="_blank" rel="noopener">${t} ↗</a>`).join("")}</div>` : ""}
-        ${direct.length ? `<div class="lbl">${ext.length ? "Option 2 · " : ""}Contact the host</div><div class="grp">${direct.join("")}</div>` : ""}
+      <aside class="book" aria-label="${sale ? "Contact the seller" : "Book with host"}">
+        <h3>${sale ? "Contact the seller" : "Book with host"}</h3>
+        <p class="fine">${sale ? "TrueHaven doesn't handle sales or payments. View the property in person and use a lawyer before paying anything." : "TrueHaven doesn't take reservations or payments. You book and pay with the host directly."}</p>
+        ${!sale && (safeUrl(o.payUrl) || o.bankAcctNo) ? `<div class="lbl">Book now · pay the host</div><div class="grp">
+          ${safeUrl(o.payUrl) ? `<a class="btn acc full" data-track="booking" data-pid="${pid}" href="${esc(o.payUrl)}" target="_blank" rel="noopener">Book now ↗</a>` : ""}
+          ${o.bankAcctNo ? `<button class="btn full" data-bank="${pid}">Pay by bank transfer</button>` : ""}</div>
+          <p class="fine" style="margin:6px 0 0">Confirm your dates and the total with the host on WhatsApp before you pay, then send them your receipt.</p>` : ""}
+        ${ext.length ? `<div class="lbl">${sale ? "More details" : "Book on a booking site"}</div><div class="grp">${ext.map(([k, t]) => `<a class="btn acc full" data-track="booking" data-pid="${pid}" href="${esc(o[k])}" target="_blank" rel="noopener">${t} ↗</a>`).join("")}</div>` : ""}
+        ${direct.length ? `<div class="lbl">Contact the ${who}</div><div class="grp">${direct.join("")}</div>` : ""}
         <div id="reveal"></div>
         <div style="margin-top:16px;display:flex;justify-content:space-between">
           <button class="linkbtn" data-share="${pid}">Copy link</button><button class="linkbtn" data-report="${pid}">Report listing</button></div>
@@ -762,7 +826,7 @@ function renderProperty(pid) {
 function renderFavorites() {
   const ids = DB.all("favorites").filter(f => f.userId === favKey()).map(f => f.propertyId);
   const r = DB.all("properties").filter(p => ids.includes(p.propertyId) && isPublic(p));
-  app.innerHTML = `<section class="sec wrap"><div class="eyebrow">Your list</div><h2 style="margin-bottom:18px">Saved stays</h2>
+  app.innerHTML = `<section class="sec wrap"><div class="eyebrow">Your list</div><h2 style="margin-bottom:18px">Saved</h2>
     ${me() ? "" : `<p class="fine" style="margin:-8px 0 16px">Saved on this device. <a href="#account">Sign in</a> to keep them in your account.</p>`}
     <div class="grid">${r.map(card).join("") || `<div class="empty">Nothing saved yet. Tap ♡ on any stay to save it here.</div>`}</div></section>`;
 }
@@ -824,7 +888,7 @@ function renderHostJoin() {
   const u = me();
   app.innerHTML = `<section class="sec wrap" style="max-width:640px">
     <div class="eyebrow">Host registration</div><h2>List your property in ${C.name}</h2>
-    <p class="fine" style="font-size:15px;margin:10px 0 18px">${TRIAL_DAYS} days free. Then US$${PLANS.small.price}/month for 1–2 properties, or US$${PLANS.large.price}/month for 3 or more. Cancel any time.</p>
+    <p class="fine" style="font-size:15px;margin:10px 0 18px">${TRIAL_DAYS} days free, nothing to pay today. A one-time US$${REG_FEE} registration fee is due on day ${REG_DAY} (includes free promotion on TrueHaven's social media). From day ${TRIAL_DAYS}: US$${PLANS.small.price}/month for 1–2 properties, or US$${PLANS.large.price}/month for 3 or more. Cancel any time.</p>
     <form class="form panel" id="hostJoin">
       <div><label class="f" for="jName">Full name or business name</label><input class="in" id="jName" required value="${esc(u ? u.name : "")}"></div>
       <div class="r2"><div><label class="f" for="jEmail">Email</label><input class="in" id="jEmail" type="email" required value="${esc(u ? u.email : "")}"></div>
@@ -892,8 +956,10 @@ function renderHostDash() {
       <div class="head" style="margin:0 0 6px"><h3 style="margin:0">Subscription</h3>${s ? `<span class="st ${s.status}">${s.status.replace("_", " ")}</span>` : ""}</div>
       <p style="margin:0 0 6px">Plan: <b>${plan.label} · US$${plan.price}/month</b> (${props.length} ${props.length === 1 ? "property" : "properties"})</p>
       <p style="margin:0 0 12px">${subLine}</p>
+      ${s ? regLine(s) : ""}
       <p class="fine" style="margin:0 0 12px">Payment method: ${s && s.card ? esc(s.card.label) : "none yet"}</p>
       <div class="chips">
+        ${s && !s.regPaid && Date.now() >= regDueAt(s) - REG_NOTICE_DAYS * DAY ? `<button class="btn sm acc" data-sub="reg">Pay registration fee (US$${REG_FEE})</button>` : ""}
         <button class="btn sm solid" data-sub="card">${s && s.card ? "Update payment method" : "Add payment method"}</button>
         ${s && (s.status === "past_due" || s.status === "expired") ? `<button class="btn sm acc" data-sub="retry">Pay now</button>` : ""}
         ${s && ["trial", "active", "past_due"].includes(s.status) ? `<button class="btn sm" data-sub="autorenew">${s.autoRenew ? "Turn off auto-renew" : "Turn on auto-renew"}</button><button class="btn sm bad" data-sub="cancel">Cancel subscription</button>` : ""}
@@ -904,7 +970,7 @@ function renderHostDash() {
     <div class="list">${props.map(p => {
       const x = stats(p.propertyId, 30);
       return `<div class="item"><div class="sw" style="${p.photos[0] ? `background-image:url('${p.photos[0]}')` : bg(p)}"></div>
-        <div class="mid"><b>${esc(p.name)}</b><div class="loc">${esc(p.town)}, ${esc(p.parish)} · ${money(p.price, "night")}</div>
+        <div class="mid"><b>${esc(p.name)}</b><div class="loc">${modeOf(p) === "sale" ? "For sale · " : ""}${esc(p.town)}, ${esc(p.parish)} · ${priceHtml(p)}</div>
           <span class="st ${p.status}">${p.status}</span>${p.status === "rejected" && p.rejectReason ? `<span class="fine"> · ${esc(p.rejectReason)}</span>` : ""}
           <div class="stats"><span><b>${x.view}</b> views</span><span><b>${x.booking}</b> booking clicks</span><span><b>${x.whatsapp}</b> WhatsApp</span><span><b>${x.phone}</b> calls</span><span><b>${x.email}</b> emails</span></div>
           <div class="acts"><a class="btn sm" href="#stay-${p.propertyId}">View</a><a class="btn sm" href="#host-edit-${p.propertyId}">Edit</a>
@@ -915,6 +981,13 @@ function renderHostDash() {
     <p class="fine" style="margin-top:12px">Views and clicks are counted when guests open your page or tap a booking or contact button.</p>
   </section>`;
 }
+function regLine(s) {
+  const due = regDueAt(s), now = Date.now(), daysTo = Math.ceil((due - now) / DAY);
+  if (s.regPaid) return `<p class="fine" style="margin:0 0 8px">✓ Registration fee paid${s.regPaidAt ? " on " + fmtDate(s.regPaidAt) : ""}. You're an official TrueHaven member, eligible for free promotion on our social media.</p>`;
+  if (now < due - REG_NOTICE_DAYS * DAY) return `<p class="fine" style="margin:0 0 8px">One-time US$${REG_FEE} registration fee due on ${fmtDate(due)} (day ${REG_DAY}). Includes free promotion on TrueHaven's social media. Nothing to pay before then.</p>`;
+  if (now < due) return `<div class="notice" style="margin:0 0 10px">Your one-time US$${REG_FEE} registration fee is due in <b>${daysTo} day${daysTo === 1 ? "" : "s"}</b> (${fmtDate(due)}). It makes you an official TrueHaven member with free promotion on our social media.</div>`;
+  return `<div class="notice bad" style="margin:0 0 10px">Your US$${REG_FEE} registration fee was due on ${fmtDate(due)}. Please pay it to keep your listings live after your free period ends.</div>`;
+}
 function subAction(a) {
   const u = me(), s = subOf(u.userId); if (!s) return;
   if (a === "card") {
@@ -924,7 +997,10 @@ function subAction(a) {
         <label class="chk"><input type="radio" name="pm" value="PayPal (test)"> Test PayPal account</label>
         <label class="chk"><input type="checkbox" id="pmFail"> Make the next payment fail (to test failed payments)</label>
         <button class="btn solid" type="submit">Save payment method</button></form>`);
-  } else if (a === "retry") { const ok = charge(s, false); toast(ok ? `Payment of US$${PLANS[s.plan].price} received. Thank you!` : "Payment failed. Try another payment method."); route(); }
+  } else if (a === "reg") {
+    if (!s.card) { toast("Add a payment method first."); subAction("card"); return; }
+    const ok = payReg(s); toast(ok ? `Registration fee of US$${REG_FEE} received. Welcome to TrueHaven!` : "Payment failed. Try another payment method."); route();
+  } else if (a === "retry") { if (!s.regPaid && !payReg(s)) { toast("Payment failed. Try another payment method."); route(); return; } const ok = charge(s, false); toast(ok ? `Payment of US$${PLANS[s.plan].price} received. Thank you!` : "Payment failed. Try another payment method."); route(); }
   else if (a === "autorenew") { s.autoRenew = !s.autoRenew; DB.save(); toast(s.autoRenew ? "Auto-renew is on." : "Auto-renew is off."); route(); }
   else if (a === "cancel") {
     modal(`<h3>Cancel subscription?</h3><p>Your listings stay live until ${fmtDate(s.status === "trial" ? s.trialEndsAt : s.currentPeriodEnd)}, then they're hidden from guests. You can resume any time before then.</p>
@@ -932,7 +1008,7 @@ function subAction(a) {
   } else if (a === "cancel-yes") { if (s.status === "trial") s.currentPeriodEnd = s.trialEndsAt; s.status = "cancelled"; s.autoRenew = false; DB.save(); toast("Subscription cancelled."); route(); }
   else if (a === "resume") { s.status = s.trialEndsAt > Date.now() ? "trial" : "active"; s.autoRenew = true; DB.save(); toast("Subscription resumed."); route(); }
   else if (a === "history") {
-    modal(`<h3>Billing history</h3>${s.history.length ? `<div class="list">${s.history.map(h => `<div class="item"><div class="mid"><b>US$${h.amount}</b><span class="fine">${fmtDate(h.at)}</span></div><span class="st ${h.result === "paid" ? "active" : "cancelled"}">${h.result}</span></div>`).join("")}</div>` : `<p class="fine">No payments yet. You're in your free period.</p>`}`);
+    modal(`<h3>Billing history</h3>${s.history.length ? `<div class="list">${s.history.map(h => `<div class="item"><div class="mid"><b>US$${h.amount}</b><span class="fine">${h.note ? esc(h.note) + " · " : ""}${fmtDate(h.at)}</span></div><span class="st ${h.result === "paid" ? "active" : "cancelled"}">${h.result}</span></div>`).join("")}</div>` : `<p class="fine">No payments yet. You're in your free period.</p>`}`);
   }
 }
 
@@ -946,26 +1022,31 @@ function renderWizard(editId) {
     if (editId && (!p || (p.hostId !== u.userId && role() !== "admin"))) { app.innerHTML = `<section class="sec wrap"><div class="empty">Listing not found.</div></section>`; return; }
     if (p && !p._full) { DB.loadPhotos(p); app.innerHTML = `<section class="sec wrap"><div class="empty">Loading photos…</div></section>`; setTimeout(() => { if (location.hash === "#host-edit-" + editId) renderWizard(editId); }, 500); return; }
     const o = p ? optionsOf(editId) : { whatsapp: u.phone || "", phone: u.phone || "", email: u.email || "" };
-    wiz = { editId, owner: u.userId, step: 0, p: p ? JSON.parse(JSON.stringify(p, (k, val) => k[0] === "_" ? undefined : val)) : { name: "", parish: "", town: "", address: "", type: "Villa", bedrooms: 1, bathrooms: 1, maxGuests: 2, price: "", amenities: [], description: "", photos: [] },
-      o: Object.assign({ airbnbUrl: "", bookingUrl: "", otherUrl: "", whatsapp: "", phone: "", email: "" }, JSON.parse(JSON.stringify(o))) };
-    wiz.on = { airbnb: !!wiz.o.airbnbUrl, booking: !!wiz.o.bookingUrl, other: !!wiz.o.otherUrl, whatsapp: !!wiz.o.whatsapp, phone: !!wiz.o.phone, email: !!wiz.o.email };
+    wiz = { editId, owner: u.userId, step: 0, p: p ? JSON.parse(JSON.stringify(p, (k, val) => k[0] === "_" ? undefined : val)) : { mode: "stay", sizeSqft: "", name: "", parish: "", town: "", address: "", type: "Villa", bedrooms: 1, bathrooms: 1, maxGuests: 2, price: "", amenities: [], description: "", photos: [] },
+      o: Object.assign({ airbnbUrl: "", bookingUrl: "", otherUrl: "", whatsapp: "", phone: "", email: "", payUrl: "", bankName: "", bankAcctName: "", bankAcctNo: "", bankBranch: "", bankCur: "JMD" }, JSON.parse(JSON.stringify(o))) };
+    wiz.on = { pay: !!wiz.o.payUrl, bank: !!wiz.o.bankAcctNo, airbnb: !!wiz.o.airbnbUrl, booking: !!wiz.o.bookingUrl, other: !!wiz.o.otherUrl, whatsapp: !!wiz.o.whatsapp, phone: !!wiz.o.phone, email: !!wiz.o.email };
   }
   const w = wiz, p = w.p, o = w.o, st = w.step;
   let body = "";
+  const sale = modeOf(p) === "sale";
   if (st === 0) body = `
+    <div><span class="f">What are you listing?</span><div class="seg" role="group" aria-label="Listing type" style="margin-top:4px">
+      <button type="button" data-wmode="stay" aria-pressed="${!sale}">Rent / short stay</button><button type="button" data-wmode="sale" aria-pressed="${sale}">For sale</button></div></div>
     <div><label class="f" for="wName">Property name</label><input class="in" id="wName" maxlength="60" placeholder="e.g. Ocean View Villa" value="${esc(p.name)}"></div>
     <div class="r2"><div><label class="f" for="wParish">${C.regionLabel}</label><select class="in" id="wParish"><option value="">Choose…</option>${C.regions.map(r => `<option ${p.parish === r ? "selected" : ""}>${r}</option>`).join("")}</select></div>
       <div><label class="f" for="wTown">Town / area</label><input class="in" id="wTown" maxlength="40" placeholder="e.g. Montego Bay" value="${esc(p.town)}"></div></div>
     <div><label class="f" for="wAddr">Address or location</label><input class="in" id="wAddr" maxlength="120" placeholder="Street or landmark (shown to guests)" value="${esc(p.address)}"></div>
-    <div><label class="f" for="wType">Property type</label><select class="in" id="wType">${TYPES.map(t => `<option ${p.type === t ? "selected" : ""}>${t}</option>`).join("")}</select></div>`;
+    <div><label class="f" for="wType">Property type</label><select class="in" id="wType">${typesFor(modeOf(p)).map(t => `<option ${p.type === t ? "selected" : ""}>${t}</option>`).join("")}</select></div>`;
   if (st === 1) body = `
     <div class="r3"><div><label class="f" for="wBeds">Bedrooms</label><input class="in" id="wBeds" type="number" min="0" inputmode="numeric" value="${p.bedrooms}"></div>
       <div><label class="f" for="wBaths">Bathrooms</label><input class="in" id="wBaths" type="number" min="0" inputmode="numeric" value="${p.bathrooms}"></div>
-      <div><label class="f" for="wGuests">Max guests</label><input class="in" id="wGuests" type="number" min="1" inputmode="numeric" value="${p.maxGuests}"></div></div>
-    <div><label class="f" for="wPrice">Price per night (US$)</label><input class="in" id="wPrice" type="number" min="1" inputmode="numeric" placeholder="e.g. 150" value="${esc(p.price)}">
-      <p class="fine" id="wPriceJ" style="margin:4px 0 0">${p.price ? "≈ " + C.symbol + Math.round(p.price * C.rateFromUSD).toLocaleString("en-US") + " per night" : "Guests can switch to J$ prices."}</p></div>
+      ${sale ? `<div><label class="f" for="wSize">${p.type === "Land" ? "Size (sq ft)" : "Size (sq ft)"}</label><input class="in" id="wSize" type="number" min="0" inputmode="numeric" placeholder="optional" value="${esc(p.sizeSqft || "")}"></div>` : `<div><label class="f" for="wGuests">Max guests</label><input class="in" id="wGuests" type="number" min="1" inputmode="numeric" value="${p.maxGuests}"></div>`}</div>
+    ${sale ? "" : `<div class="r2"><div><label class="f" for="wUnit">How do you charge?</label><select class="in" id="wUnit">${Object.keys(UNITS).map(k => `<option value="${k}" ${unitOf(p) === k ? "selected" : ""}>${UNITS[k].label}</option>`).join("")}</select></div>
+      <div><label class="f" for="wMin" id="wMinLbl">Minimum stay (${UNITS[unitOf(p)].per}s, optional)</label><input class="in" id="wMin" type="number" min="0" inputmode="numeric" placeholder="none" value="${esc(p.minStay || "")}"></div></div>`}
+    <div><label class="f" for="wPrice" id="wPriceLbl">${sale ? "Asking price (US$)" : "Price " + UNITS[unitOf(p)].label.toLowerCase() + " (US$)"}</label><input class="in" id="wPrice" type="number" min="1" inputmode="numeric" placeholder="${sale ? "e.g. 250000" : "e.g. 150"}" value="${esc(p.price)}" data-sale="${sale}" data-unit="${unitOf(p)}">
+      <p class="fine" id="wPriceJ" style="margin:4px 0 0">${p.price ? "≈ " + C.symbol + Math.round(p.price * C.rateFromUSD).toLocaleString("en-US") + (sale ? "" : " " + UNITS[unitOf(p)].label.toLowerCase()) : "Visitors can switch to J$ prices."}</p></div>
     <div><span class="f">Amenities</span><div class="chips">${AMENITIES.map(a => `<label><input type="checkbox" data-amen value="${esc(a)}" ${p.amenities.includes(a) ? "checked" : ""}> ${esc(a)}</label>`).join("")}</div></div>
-    <div><label class="f" for="wDesc">Description</label><textarea class="in" id="wDesc" maxlength="1200" placeholder="What makes your place special? Nearby beaches, sights, transport…">${esc(p.description)}</textarea></div>`;
+    <div><label class="f" for="wDesc">Description</label><textarea class="in" id="wDesc" maxlength="1200" placeholder="${sale ? "Title, land size, condition, what's nearby…" : "What makes your place special? Nearby beaches, sights, transport…"}">${esc(p.description)}</textarea></div>`;
   if (st === 2) body = `
     <p class="fine" style="margin:0">Add up to 8 photos. The first one is the cover. Clear, bright photos get more clicks.</p>
     <div class="pics">${p.photos.map((src, i) => `<div><img src="${src}" alt="Photo ${i + 1}">${i === 0 ? `<span class="cover">Cover</span>` : `<button type="button" class="mk" data-cover="${i}">Make cover</button>`}<button type="button" data-delpic="${i}" aria-label="Remove photo">×</button></div>`).join("")}</div>
@@ -975,10 +1056,21 @@ function renderWizard(editId) {
   if (st === 3) {
     const row = (k, label, key, ph, type) => `<div class="optrow"><label class="chk"><input type="checkbox" data-opt="${k}" ${w.on[k] ? "checked" : ""}> ${label}</label>
       ${w.on[k] ? `<input class="in" data-optv="${key}" type="${type}" placeholder="${ph}" value="${esc(o[key])}">` : ""}</div>`;
-    body = `<p class="fine" style="margin:0">Choose how guests can book or reach you. Pick at least one.</p>
-      ${row("airbnb", "Airbnb", "airbnbUrl", "https://www.airbnb.com/rooms/…", "url")}
-      ${row("booking", "Booking.com", "bookingUrl", "https://www.booking.com/hotel/jm/…", "url")}
-      ${row("other", "Other booking website", "otherUrl", "https://…", "url")}
+    const bankRow = `<div class="optrow"><label class="chk"><input type="checkbox" data-opt="bank" ${w.on.bank ? "checked" : ""}> Bank transfer (guests pay into your bank account)</label>
+      ${w.on.bank ? `<div class="form" style="margin-top:8px;gap:8px">
+        <div class="r2"><input class="in" data-optv="bankName" placeholder="Bank (e.g. NCB, Scotiabank, JN)" value="${esc(o.bankName)}"><input class="in" data-optv="bankBranch" placeholder="Branch" value="${esc(o.bankBranch)}"></div>
+        <input class="in" data-optv="bankAcctName" placeholder="Account name" value="${esc(o.bankAcctName)}">
+        <div class="r2"><input class="in" data-optv="bankAcctNo" inputmode="numeric" placeholder="Account number" value="${esc(o.bankAcctNo)}">
+          <select class="in" data-optv="bankCur"><option value="JMD" ${o.bankCur !== "USD" ? "selected" : ""}>JMD account</option><option value="USD" ${o.bankCur === "USD" ? "selected" : ""}>USD account</option></select></div>
+        <p class="fine" style="margin:0">These details are shown to everyone who views your listing. Only add an account you're comfortable sharing.</p></div>` : ""}</div>`;
+    body = `<p class="fine" style="margin:0">${sale ? "Choose how buyers can reach you. Pick at least one." : "Choose how guests can book, pay or reach you. Pick at least one."}</p>
+      ${sale ? "" : `<div class="lbl f" style="margin-top:6px">Guests pay you now</div>`}
+      ${sale ? "" : row("pay", "Book now: your online payment link (PayPal, WiPay, etc.)", "payUrl", "https://paypal.me/yourname or your WiPay link", "url")}
+      ${sale ? "" : bankRow}
+      ${sale ? "" : `<div class="lbl f" style="margin-top:6px">Booking sites and contact</div>`}
+      ${sale ? "" : row("airbnb", "Airbnb", "airbnbUrl", "https://www.airbnb.com/rooms/…", "url")}
+      ${sale ? "" : row("booking", "Booking.com", "bookingUrl", "https://www.booking.com/hotel/jm/…", "url")}
+      ${row("other", sale ? "Your listing website (optional)" : "Other booking website", "otherUrl", "https://…", "url")}
       ${row("whatsapp", "WhatsApp", "whatsapp", "876 555 0100", "tel")}
       ${row("phone", "Phone", "phone", "876 555 0100", "tel")}
       ${row("email", "Email", "email", "you@example.com", "email")}`;
@@ -986,9 +1078,9 @@ function renderWizard(editId) {
   if (st === 4) {
     const on = Object.keys(w.on).filter(k => w.on[k]);
     body = `<div class="ph" style="max-width:420px">${photoBox(p)}</div>
-      <div><div class="price">${money(+p.price || 0, "night")}</div><h3 style="font-family:var(--font-body);font-size:18px;font-weight:600;margin:4px 0">${esc(p.name)}</h3>
+      <div><div class="price">${priceHtml(p)}</div><h3 style="font-family:var(--font-body);font-size:18px;font-weight:600;margin:4px 0">${esc(p.name)}</h3>
       <div class="loc">${esc(p.type)} · ${esc(p.town)}, ${esc(p.parish)} · ${esc(p.address)}</div>
-      <div class="facts"><span>${p.bedrooms} bd</span><span>${p.bathrooms} ba</span><span>Up to ${p.maxGuests} guests</span><span>${p.photos.length} photos</span></div>
+      <div class="facts">${factsHtml(p)}<span>${p.photos.length} photos</span></div>
       <p class="fine">${p.amenities.map(esc).join(" · ") || "No amenities selected"}</p>
       <p class="fine">Booking & contact: ${on.join(", ")}</p></div>
       ${TEST_AUTO_APPROVE ? `<div class="notice ok">Testing mode: your listing is approved instantly and goes live as soon as you submit. In the real app, our team reviews it first.</div>` : `<div class="notice">After you submit, our team reviews the listing. It goes live once approved, usually within 24 hours.${w.editId && p.status === "approved" ? " Editing a live listing sends it back for review." : ""}</div>`}`;
@@ -1007,16 +1099,19 @@ function renderWizard(editId) {
 function wizCollect() {
   const w = wiz, p = w.p, v = id => $("#" + id) ? $("#" + id).value.trim() : null;
   if (w.step === 0) { p.name = v("wName"); p.parish = v("wParish"); p.town = v("wTown"); p.address = v("wAddr"); p.type = v("wType"); }
-  if (w.step === 1) { p.bedrooms = +v("wBeds") || 0; p.bathrooms = +v("wBaths") || 0; p.maxGuests = +v("wGuests") || 0; p.price = v("wPrice") === "" ? "" : +v("wPrice"); p.description = v("wDesc");
+  if (w.step === 1) { p.bedrooms = +v("wBeds") || 0; p.bathrooms = +v("wBaths") || 0; if (modeOf(p) === "sale") { p.maxGuests = 0; p.sizeSqft = +v("wSize") || ""; p.priceUnit = ""; p.minStay = ""; } else { p.maxGuests = +v("wGuests") || 0; p.priceUnit = UNITS[v("wUnit")] ? v("wUnit") : "night"; p.minStay = +v("wMin") > 0 ? Math.round(+v("wMin")) : ""; } p.price = v("wPrice") === "" ? "" : +v("wPrice"); p.description = v("wDesc");
     p.amenities = [...document.querySelectorAll("[data-amen]:checked")].map(x => x.value); }
   if (w.step === 3) document.querySelectorAll("[data-optv]").forEach(i => w.o[i.dataset.optv] = i.value.trim());
 }
 function wizValidate() {
   const w = wiz, p = w.p, o = w.o;
   if (w.step === 0) return !p.name ? "Add a property name." : !p.parish ? `Choose a ${C.regionLabel.toLowerCase()}.` : !p.town ? "Add the town or area." : "";
-  if (w.step === 1) return p.maxGuests < 1 ? "Max guests must be at least 1." : !(p.price > 0) ? "Add a nightly price." : "";
+  if (w.step === 1) return modeOf(p) === "stay" && p.maxGuests < 1 ? "Max guests must be at least 1." : !(p.price > 0) ? (modeOf(p) === "sale" ? "Add the asking price." : "Add your price " + UNITS[unitOf(p)].label.toLowerCase() + ".") : "";
   if (w.step === 3) {
-    const on = w.on; if (!Object.values(on).some(Boolean)) return "Choose at least one booking or contact option.";
+    const on = w.on; if (modeOf(p) === "sale") { on.airbnb = false; on.booking = false; on.pay = false; on.bank = false; }
+    if (on.pay && !safeUrl(o.payUrl)) return "Add your full payment link starting with https:// (e.g. https://paypal.me/yourname).";
+    if (on.bank) { if (!o.bankName || !o.bankAcctName) return "Add your bank name and account name."; if (digits(o.bankAcctNo).length < 5) return "Add a valid bank account number."; }
+    if (!Object.values(on).some(Boolean)) return "Choose at least one booking or contact option.";
     for (const [k, key, name] of [["airbnb", "airbnbUrl", "Airbnb"], ["booking", "bookingUrl", "Booking.com"], ["other", "otherUrl", "booking website"]])
       if (on[k] && !safeUrl(o[key])) return `Add a full ${name} link starting with https://`;
     for (const k of ["whatsapp", "phone"]) if (on[k]) { let d = digits(o[k]); if (d.length === 7) d = "1876" + d; else if (d.length === 10) d = "1" + d; if (d.length < 10) return `Add a valid ${k === "whatsapp" ? "WhatsApp" : "phone"} number.`; o[k] = "+" + d; }
@@ -1026,9 +1121,11 @@ function wizValidate() {
 }
 function wizSubmit() {
   const w = wiz, u = me(), isAdmin = role() === "admin";
-  const o = {}; ["airbnbUrl", "bookingUrl", "otherUrl", "whatsapp", "phone", "email"].forEach(k => o[k] = "");
-  const map = { airbnb: "airbnbUrl", booking: "bookingUrl", other: "otherUrl", whatsapp: "whatsapp", phone: "phone", email: "email" };
+  const o = {}; ["airbnbUrl", "bookingUrl", "otherUrl", "whatsapp", "phone", "email", "payUrl", "bankName", "bankAcctName", "bankAcctNo", "bankBranch", "bankCur"].forEach(k => o[k] = "");
+  if (w.on.bank) ["bankName", "bankAcctName", "bankAcctNo", "bankBranch", "bankCur"].forEach(k => o[k] = String(w.o[k] || "").slice(0, 80));
+  const map = { pay: "payUrl", airbnb: "airbnbUrl", booking: "bookingUrl", other: "otherUrl", whatsapp: "whatsapp", phone: "phone", email: "email" };
   Object.keys(map).forEach(k => { if (w.on[k]) o[map[k]] = w.o[map[k]]; });
+  if (modeOf(w.p) === "sale") { ["airbnbUrl", "bookingUrl", "payUrl", "bankName", "bankAcctName", "bankAcctNo", "bankBranch", "bankCur"].forEach(k => o[k] = ""); }
   if (w.editId) {
     const status = isAdmin ? w.p.status : (TEST_AUTO_APPROVE ? "approved" : "pending");
     const orig = DB.find("properties", "propertyId", w.editId);
@@ -1088,7 +1185,7 @@ function renderAdmin(tab) {
 const userName = id => (DB.find("users", "userId", id) || {}).name || "Unknown";
 function propItem(p, actions) {
   return `<div class="item"><div class="sw" style="${p.photos[0] ? `background-image:url('${p.photos[0]}')` : bg(p)}"></div>
-    <div class="mid"><b>${esc(p.name)}</b><div class="loc">${esc(p.town)}, ${esc(p.parish)} · ${esc(p.type)} · US$${p.price}/night</div>
+    <div class="mid"><b>${esc(p.name)}</b><div class="loc">${esc(p.town)}, ${esc(p.parish)} · ${modeOf(p) === "sale" ? "For sale · " : ""}${esc(p.type)} · ${priceHtml(p)}</div>
       <div class="fine">Host: ${esc(p.sample ? "Sample listing" : (p.hostName || userName(p.hostId)))} · Added ${fmtDate(p.createdAt)}</div>
       <span class="st ${p.status}">${p.status}</span>${p.status === "approved" && !isPublic(p) ? ` <span class="st expired">hidden · subscription</span>` : ""}
       <div class="acts">${actions}</div></div></div>`;
@@ -1152,15 +1249,17 @@ function adminReports() {
 }
 function adminSubs() {
   const S = DB.all("subscriptions");
-  return `<p class="fine" style="margin-top:0">Prices: 1–2 properties US$${PLANS.small.price}/month, 3+ properties US$${PLANS.large.price}/month. ${TRIAL_DAYS}-day free period, ${GRACE_DAYS}-day grace after a failed payment.</p>
+  return `<p class="fine" style="margin-top:0">Prices: 1–2 properties US$${PLANS.small.price}/month, 3+ properties US$${PLANS.large.price}/month. ${TRIAL_DAYS}-day free period, one-time US$${REG_FEE} registration fee due on day ${REG_DAY}, ${GRACE_DAYS}-day grace after a failed payment.</p>
   <div class="list">${S.map(s => {
     const u = DB.find("users", "userId", s.hostId) || {};
     const end = s.status === "trial" ? s.trialEndsAt : s.currentPeriodEnd;
     return `<div class="item"><div class="mid"><b>${esc(u.name || "Deleted host")}</b>
       <div class="loc">${PLANS[s.plan].label} · US$${PLANS[s.plan].price}/month · ${s.card ? esc(s.card.label) : "no payment method"}</div>
       <div class="fine">${s.status === "trial" ? "Free period ends" : s.status === "expired" ? "Ended" : "Current period ends"} ${fmtDate(end)} · auto-renew ${s.autoRenew ? "on" : "off"}${s.failedAttempts ? ` · ${s.failedAttempts} failed payment(s)` : ""}</div>
+      <div class="fine">Registration fee (US$${REG_FEE}): ${s.regPaid ? "paid" + (s.regPaidAt ? " " + fmtDate(s.regPaidAt) : "") : (Date.now() > regDueAt(s) ? "<b>overdue</b> since " : "due ") + fmtDate(regDueAt(s))}</div>
       <span class="st ${s.status}">${s.status.replace("_", " ")}</span>
       <div class="acts"><button class="btn sm" data-adm-sub="paid" data-sid="${s.hostId}">Record payment</button>
+        ${s.regPaid ? "" : `<button class="btn sm" data-adm-sub="reg" data-sid="${s.hostId}">Record registration fee</button>`}
         <button class="btn sm" data-adm-sub="fail" data-sid="${s.hostId}">Simulate failed payment</button>
         <button class="btn sm" data-adm-sub="extend" data-sid="${s.hostId}">+30 days free</button>
         ${s.status !== "cancelled" && s.status !== "expired" ? `<button class="btn sm bad" data-adm-sub="cancel" data-sid="${s.hostId}">Cancel</button>` : ""}
@@ -1241,11 +1340,11 @@ async function forgotSubmit() {
    Events
    ========================================================= */
 function refreshResults() {
-  if (!$("#grid") || (location.hash || "#home").slice(1) !== "search") return;
+  if (!$("#grid") || !["search", "buy"].includes((location.hash || "#home").slice(1))) return;
   const r = results(), q = state.q;
-  $("#grid").innerHTML = r.map(card).join("") || `<div class="empty">No stays match these filters yet. Try another parish or a wider price range.</div>`;
+  $("#grid").innerHTML = r.map(card).join("") || `<div class="empty">No ${q.mode === "sale" ? "homes for sale" : "stays"} match these filters yet. Try another parish or a wider price range.</div>`;
   const h = document.querySelector(".head h2"), c = document.querySelector(".head .count");
-  if (h) h.textContent = "Stays in " + (q.town || q.parish || C.name);
+  if (h) h.textContent = (q.mode === "sale" ? "Homes for sale in " : "Stays in ") + (q.town || q.parish || C.name);
   if (c) c.textContent = `${r.length} ${r.length === 1 ? "property" : "properties"}`;
 }
 document.addEventListener("change", e => {
@@ -1270,14 +1369,24 @@ document.addEventListener("change", e => {
 
 });
 document.addEventListener("input", e => {
-  if (e.target.id === "wPrice") { const v = +e.target.value; $("#wPriceJ").textContent = v > 0 ? "≈ " + C.symbol + Math.round(v * C.rateFromUSD).toLocaleString("en-US") + " per night" : "Guests can switch to J$ prices."; }
+  if (e.target.id === "wPrice") updWizPrice();
 });
+function updWizPrice() {
+  const i = $("#wPrice"); if (!i) return; const sale = i.dataset.sale === "true", u = $("#wUnit") ? $("#wUnit").value : "night", v = +i.value;
+  if (!sale) { $("#wPriceLbl").textContent = "Price " + UNITS[u].label.toLowerCase() + " (US$)"; if ($("#wMinLbl")) $("#wMinLbl").textContent = `Minimum stay (${UNITS[u].per}s, optional)`; }
+  $("#wPriceJ").textContent = v > 0 ? "≈ " + C.symbol + Math.round(v * C.rateFromUSD).toLocaleString("en-US") + (sale ? "" : " " + UNITS[u].label.toLowerCase()) : "Visitors can switch to J$ prices.";
+}
+document.addEventListener("change", e => { if (e.target.id === "wUnit") updWizPrice(); });
 document.addEventListener("click", e => {
   const t = e.target, c = s => t.closest(s);
   let el;
   if ((el = c("[data-close]")) || t.id === "scrim") { closeModal(); return; }
   if ((el = c("[data-showpw]"))) { const i = $("#" + el.dataset.showpw); const show = i.type === "password"; i.type = show ? "text" : "password"; el.textContent = show ? "Hide" : "Show"; return; }
   if ((el = c("[data-forgot]"))) { openForgot($("#lEmail") ? $("#lEmail").value.trim() : ""); return; }
+  if ((el = c("[data-mode]"))) {
+    const m = el.dataset.mode; if (state.q.mode !== m) Object.assign(state.q, { mode: m, type: "", min: "", max: "", guests: 0, sort: state.q.sort === "guests" ? "featured" : state.q.sort });
+    if (el.hasAttribute("data-go-search") || (location.hash || "#home").slice(1) === "search") go("search"); else route(); return; }
+  if ((el = c("[data-wmode]"))) { wizCollect(); const m = el.dataset.wmode; if (modeOf(wiz.p) !== m) { wiz.p.mode = m; if (!typesFor(m).includes(wiz.p.type)) wiz.p.type = typesFor(m)[0]; } renderWizard(wiz.editId); return; }
   if ((el = c("[data-cur]"))) {
     state.cur = el.dataset.cur; state.q.min = state.q.max = "";
     document.querySelectorAll("[data-cur]").forEach(b => b.setAttribute("aria-pressed", b === el)); route(); return; }
@@ -1291,6 +1400,16 @@ document.addEventListener("click", e => {
     track(el.dataset.track, el.dataset.pid);
     if (el.dataset.reveal) { $("#reveal").innerHTML = `<div class="reveal">${el.dataset.reveal}</div>`; }
     return; }
+  if ((el = c("[data-bank]"))) {
+    const pid = el.dataset.bank, p = DB.find("properties", "propertyId", pid), o = optionsOf(pid); track("booking", pid);
+    const ref = "TH-" + String(pid).slice(-5).toUpperCase(), row = (k, v) => v ? `<div class="item" style="padding:10px 0"><div class="mid"><span class="f">${k}</span><b style="word-break:break-all">${esc(v)}</b></div><button class="btn sm" data-copy="${esc(v)}">Copy</button></div>` : "";
+    modal(`<h3>Pay by bank transfer</h3>
+      <p class="fine" style="margin:0 0 6px">Pay ${esc(p.hostName || "the host")} directly from your banking app.</p>
+      <div class="list" style="border:0">${row("Bank", o.bankName)}${row("Branch", o.bankBranch)}${row("Account name", o.bankAcctName)}${row("Account number", o.bankAcctNo)}${row("Currency", o.bankCur === "USD" ? "US dollars (USD account)" : "Jamaican dollars (JMD account)")}${row("Reference", ref)}</div>
+      <div class="notice" style="margin-top:10px">Agree your dates and the total with the host first. After paying, send them your receipt with the reference <b>${ref}</b>. TrueHaven doesn't hold or check payments, so never pay for a place the host hasn't confirmed.</div>
+      ${o.whatsapp ? `<a class="btn solid full" style="margin-top:12px" data-track="whatsapp" data-pid="${pid}" href="https://wa.me/${digits(o.whatsapp)}?text=${encodeURIComponent(`Hi ${p.hostName || ""}, I'd like to book "${p.name}" and pay by bank transfer. My dates are: `)}" target="_blank" rel="noopener">Confirm dates on WhatsApp first</a>` : ""}`);
+    return; }
+  if ((el = c("[data-copy]"))) { const v = el.dataset.copy; try { navigator.clipboard.writeText(v).then(() => { el.textContent = "Copied"; }, () => toast(v)); } catch (_) { toast(v); } return; }
   if ((el = c("[data-share]"))) { const url = location.href; try { navigator.clipboard.writeText(url).then(() => toast("Link copied"), () => toast(url)); } catch (_) { toast(url); } return; }
   if ((el = c("[data-report]"))) {
     modal(`<h3>Report this listing</h3><form class="form" id="reportForm" data-pid="${el.dataset.report}">
@@ -1335,6 +1454,7 @@ document.addEventListener("click", e => {
   if ((el = c("[data-adm-sub]"))) {
     const s = DB.find("subscriptions", "hostId", el.dataset.sid), a = el.dataset.admSub;
     if (a === "paid") { s.card = s.card || { label: "Recorded by admin" }; s.card.failNext = false; charge(s, false); toast("Payment recorded."); }
+    if (a === "reg") { payReg(s, true); toast("Registration fee recorded."); }
     if (a === "fail") { charge(s, false, true); toast("Failed payment simulated. Host is now past due."); }
     if (a === "extend") { if (s.status === "trial" || s.status === "expired") { s.status = "trial"; s.trialEndsAt = Math.max(Date.now(), s.trialEndsAt) + 30 * DAY; s.currentPeriodEnd = s.trialEndsAt; } else s.currentPeriodEnd += 30 * DAY; DB.save(); toast("Added 30 free days."); }
     if (a === "cancel") { s.status = "cancelled"; s.autoRenew = false; if (s.currentPeriodEnd < s.trialEndsAt) s.currentPeriodEnd = s.trialEndsAt; DB.save(); toast("Subscription cancelled."); }
@@ -1402,14 +1522,16 @@ async function samples(on) {
     ["Ocean View Villa", "St James", "Montego Bay", "Villa", 420, 4, 4, 8, ["Wi-Fi","Air conditioning","Pool","Sea view","Kitchen","Parking"], "A hillside villa with wide sea views over Montego Bay. Infinity pool and a large deck for sunset dinners.", 1],
     ["Cliffside Sunset Villa", "Westmoreland", "Negril", "Villa", 540, 4, 4, 8, ["Wi-Fi","Pool","Sea view","Beach access"], "Private steps down to the water on Negril's West End cliffs.", 2],
     ["Seven Mile Guesthouse", "Westmoreland", "Negril", "Guesthouse", 95, 1, 1, 2, ["Wi-Fi","Beach access","Breakfast included"], "Simple, friendly rooms across the road from Seven Mile Beach.", 3],
-    ["Blue Mountain Treehouse", "Portland", "Port Antonio", "Other", 210, 2, 1, 4, ["Wi-Fi","Kitchen","Hot water"], "A raised wooden cottage in the hills above Port Antonio.", 6],
-    ["New Kingston Suites", "St Andrew", "New Kingston", "Hotel", 160, 1, 1, 2, ["Wi-Fi","Air conditioning","Pool","Workspace"], "Business-friendly suites near Emancipation Park.", 4],
-    ["Ocho Rios Bay Apartment", "St Ann", "Ocho Rios", "Apartment", 130, 2, 1, 4, ["Wi-Fi","Air conditioning","Pool","Sea view","Kitchen"], "Two-bedroom with a balcony over the bay, close to Dunn's River Falls.", 0]
+    ["Blue Mountain Treehouse", "Portland", "Port Antonio", "Other", 1200, 2, 1, 4, ["Wi-Fi","Kitchen","Hot water"], "A raised wooden cottage in the hills above Port Antonio. Rented by the week.", 6, "", "", "week", 1],
+    ["New Kingston Apartment", "St Andrew", "New Kingston", "Apartment", 1800, 1, 1, 2, ["Wi-Fi","Air conditioning","Pool","Workspace"], "Furnished one-bedroom near Emancipation Park, rented monthly.", 4, "", "", "month", 3],
+    ["Ocho Rios Bay Apartment", "St Ann", "Ocho Rios", "Apartment", 130, 2, 1, 4, ["Wi-Fi","Air conditioning","Pool","Sea view","Kitchen"], "Two-bedroom with a balcony over the bay, close to Dunn's River Falls.", 0],
+    ["Hillside Family Home", "St James", "Montego Bay", "House", 385000, 4, 3, 0, ["Sea view","Parking","Water tank"], "Four-bedroom home with sea views, solar water heater and a two-car garage.", 5, "sale", 2800],
+    ["Half-Acre Lot with Title", "St Elizabeth", "Treasure Beach", "Land", 95000, 0, 0, 0, [], "Flat residential lot with registered title, light and water on the road.", 8, "sale", 21780]
   ];
   S.forEach((x, i) => {
     const pid = "sample" + (i + 1);
-    DB.insert("properties", { propertyId: pid, hostId: DB.state.user.uid, hostName: "Sample host", hostSince: now, sample: true, featured: i < 3, live: true, name: "[Sample] " + x[0], parish: x[1], town: x[2], address: x[2], type: x[3], price: x[4], bedrooms: x[5], bathrooms: x[6], maxGuests: x[7], amenities: x[8], description: x[9] + " (Sample listing for testing. Not a real property.)", pair: x[10], country: ACTIVE_COUNTRY, status: "approved", createdAt: now - i * 1000, photos: [] });
-    DB.insert("options", { propertyId: pid, airbnbUrl: "https://www.airbnb.com/", bookingUrl: "", otherUrl: "", whatsapp: "", phone: "", email: "" });
+    DB.insert("properties", { propertyId: pid, mode: x[11] || "stay", sizeSqft: x[12] || "", priceUnit: x[11] === "sale" ? "" : (x[13] || "night"), minStay: x[14] || "", hostId: DB.state.user.uid, hostName: "Sample host", hostSince: now, sample: true, featured: i < 3, live: true, name: "[Sample] " + x[0], parish: x[1], town: x[2], address: x[2], type: x[3], price: x[4], bedrooms: x[5], bathrooms: x[6], maxGuests: x[7], amenities: x[8], description: x[9] + " (Sample listing for testing. Not a real property.)", pair: x[10], country: ACTIVE_COUNTRY, status: "approved", createdAt: now - i * 1000, photos: [] });
+    DB.insert("options", x[11] === "sale" ? { propertyId: pid, airbnbUrl: "", bookingUrl: "", otherUrl: "", whatsapp: "+18765550100", phone: "", email: "" } : Object.assign({ propertyId: pid, airbnbUrl: "https://www.airbnb.com/", bookingUrl: "", otherUrl: "", whatsapp: "", phone: "", email: "" }, i === 0 ? { payUrl: "https://www.paypal.com/", bankName: "Sample Bank (not real)", bankBranch: "Montego Bay", bankAcctName: "Sample Host", bankAcctNo: "00000000", bankCur: "JMD", whatsapp: "+18765550100" } : {}));
   });
   await DB.save(); toast("Sample listings added."); route();
 }
