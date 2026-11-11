@@ -216,6 +216,35 @@ footer{padding:36px 0 28px;font-size:13px;color:var(--muted);border-top:1px soli
 @media (max-width:440px){.top .logo span{display:none}}
 @media (max-width:380px){.logo{font-size:22px}}
 @media (max-width:699px){.search .field:nth-child(5){grid-column:1/-1}}
+
+/* messaging */
+nav.bottom a .i{position:relative}
+.nb{position:absolute;top:-4px;left:50%;margin-left:6px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--bad);color:#fff;font:600 10px/16px var(--font-body);letter-spacing:0}
+.nb[hidden]{display:none}
+a.item.thr{text-decoration:none;color:inherit;align-items:center}
+.thr-top{display:flex;justify-content:space-between;gap:8px}
+.thr-last{color:var(--muted);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62vw}
+.thr-last.new{color:var(--fg);font-weight:600}
+.item .mid{min-width:0;flex:1}
+.dot{min-width:22px;height:22px;border-radius:11px;background:var(--accent);color:var(--accent-fg);font-size:12px;font-weight:600;display:grid;place-items:center;padding:0 6px}
+.chat-head{display:flex;gap:12px;align-items:center;margin-top:12px}
+.chat-head .mid{min-width:0;flex:1}
+.av{flex:none}
+.more{position:relative}
+.more summary{list-style:none;cursor:pointer;font-size:22px;padding:4px 10px;border:1px solid var(--line)}
+.more summary::-webkit-details-marker{display:none}
+.more .menu{position:absolute;right:0;top:100%;z-index:5;background:var(--bg);border:1px solid var(--line);min-width:170px;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.more .menu button{display:block;width:100%;text-align:left;background:none;border:0;padding:12px 14px;font:inherit;color:var(--fg);cursor:pointer}
+.more .menu button.bad{color:var(--bad)}
+.msgs{display:flex;flex-direction:column;gap:6px;padding:16px 0;min-height:30vh}
+.msgs .day{align-self:center;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:8px 0}
+.bub{max-width:80%;align-self:flex-start;background:var(--surface);border:1px solid var(--line);padding:9px 12px;white-space:pre-wrap;word-wrap:break-word}
+.bub.me{align-self:flex-end;background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.bub time{display:block;font-size:11px;opacity:.7;margin-top:3px;text-align:right}
+.chatbar{position:sticky;bottom:calc(58px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;align-items:flex-end;background:var(--bg);padding:10px 0;border-top:1px solid var(--line)}
+.chatbar textarea{flex:1;resize:none;min-height:44px;max-height:160px}
+.chatbar .btn{flex:none}
+@media (max-width:400px){nav.bottom a{font-size:10px;letter-spacing:.03em}}
 </style>
 </head>
 <body>
@@ -368,7 +397,7 @@ function track(type, pid) { const p = DB.find("properties", "propertyId", pid); 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail,
   sendEmailVerification, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, addDoc, onSnapshot, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot, query, where, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const fbApp = initializeApp(FIREBASE_CONFIG);
 const auth = getAuth(fbApp), fs = getFirestore(fbApp);
@@ -423,7 +452,7 @@ const DB = (() => {
     unsubs.push(onSnapshot(ref, ds => applySnap(t, name, { forEach: fn => { if (ds.exists()) fn(ds); } }), e => { console.warn(t, name, e.code); }));
   }
   let renderTimer = null;
-  const NO_REFRESH = /^#(host-add|host-edit|host-join|account)/;
+  const NO_REFRESH = /^#(host-add|host-edit|host-join|account|chat-|inbox)/;
   function scheduleRender() { if (!state.ready) return; clearTimeout(renderTimer); renderTimer = setTimeout(() => {
     if (document.querySelector("#scrim:not([hidden])") || isTyping() || NO_REFRESH.test(location.hash)) return; route(true); }, 150); }
   const isTyping = () => { const a = document.activeElement; return a && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && !a.closest(".search"); };
@@ -548,6 +577,7 @@ onAuthStateChanged(auth, async u => {
     } catch (e) { console.warn(e); }
   }
   DB.startListeners();
+  Chat.start();
   // carry device favourites into the account
   if (u) DB.takeDeviceFavs().forEach(pid => DB.insert("favorites", { favId: u.uid + "_" + pid, userId: u.uid, propertyId: pid }));
   DB.state.ready = true;
@@ -617,10 +647,13 @@ function go(h) { if (location.hash === "#" + h) route(); else location.hash = h;
 /* ---------- navigation ---------- */
 function nav(cur) {
   const r = role();
+  const ib = ["inbox", "✉", "Inbox"];
   let items = [["home", "⌂", "Explore"], ["search", "⌕", "Stays"], ["buy", "◈", "Buy"], ["favorites", "♡", "Saved"], ["account", "○", "Account"]];
-  if (r === "host") items = [["home", "⌂", "Explore"], ["host", "▦", "Dashboard"], ["host-add", "+", "Add"], ["account", "○", "Account"]];
-  if (r === "admin") items = [["home", "⌂", "Explore"], ["admin", "▦", "Admin"], ["admin-properties", "☰", "Listings"], ["account", "○", "Account"]];
-  $("#bnav").innerHTML = items.map(([h, i, t]) => `<a href="#${h}" ${cur === h || (cur.startsWith(h + "-") && h !== "host" && h !== "admin") ? 'aria-current="page"' : ""}><span class="i" aria-hidden="true">${i}</span>${t}</a>`).join("");
+  if (r === "guest") items = [["home", "⌂", "Explore"], ["search", "⌕", "Stays"], ["buy", "◈", "Buy"], ["favorites", "♡", "Saved"], ib, ["account", "○", "Account"]];
+  if (r === "host") items = [["home", "⌂", "Explore"], ["host", "▦", "Dashboard"], ["host-add", "+", "Add"], ib, ["account", "○", "Account"]];
+  if (r === "admin") items = [["home", "⌂", "Explore"], ["admin", "▦", "Admin"], ["admin-properties", "☰", "Listings"], ib, ["account", "○", "Account"]];
+  $("#bnav").innerHTML = items.map(([h, i, t]) => `<a href="#${h}" ${cur === h || (cur.startsWith(h + "-") && h !== "host" && h !== "admin") ? 'aria-current="page"' : ""}><span class="i" aria-hidden="true">${i}${h === "inbox" ? `<b class="nb" data-inbox-badge hidden></b>` : ""}</span>${t}</a>`).join("");
+  Chat.badge();
   const lb = $("#listBtn");
   lb.href = r === "host" ? "#host-add" : r === "admin" ? "#admin-properties" : "#host-join";
   lb.textContent = r === "admin" ? "Listings" : "+ List property";
@@ -634,6 +667,8 @@ function route(soft) {
   const y = window.scrollY;
   tickSubscriptions();
   if (!soft) closeModal();
+  if (!/^#chat-/.test(location.hash)) Chat.closeMsgs();
+  if (role() === "host" || role() === "admin") Alerts.ensure();
   const h = (location.hash || "#home").slice(1) || "home";
   const [base, ...rest] = h.split("-"); const arg = rest.join("-");
   let page = h;
@@ -644,6 +679,8 @@ function route(soft) {
   else if (h === "search" || h === "buy") { const m = h === "buy" ? "sale" : "stay"; if (state.q.mode !== m) Object.assign(state.q, { mode: m, unit: "", type: "", min: "", max: "", guests: 0, sort: "featured" }); renderSearch(); }
   else if (base === "stay") renderProperty(arg);
   else if (h === "favorites") renderFavorites();
+  else if (h === "inbox") { page = "inbox"; Chat.renderInbox(); }
+  else if (base === "chat") { page = "inbox"; Chat.renderChat(arg); }
   else if (h === "account") renderAccount();
   else if (h === "host-join") renderHostJoin();
   else if (h === "host") renderHostDash();
@@ -780,9 +817,9 @@ function renderProperty(pid) {
   const n = Math.max(1, p.photos.length); if (state.gal >= n) state.gal = 0;
   const sale = modeOf(p) === "sale", who = sale ? "seller" : "host";
   const ext = (sale ? [["otherUrl", "View on the seller's website"]] : []).filter(([k]) => safeUrl(o[k]));
-  const direct = [];
+  const direct = [`<button class="btn solid full" data-msg="${pid}">Message ${who}</button>`];
   const waText = sale ? `Hi ${host.name || ""}, I saw "${p.name}" for sale on TravelHaven. Is it still available? I'd like to arrange a viewing.` : `Hi ${host.name || ""}, I found "${p.name}" on TravelHaven. Is it available for my dates?`;
-  if (o.whatsapp) direct.push(`<a class="btn solid full" data-track="whatsapp" data-pid="${pid}" href="https://wa.me/${digits(o.whatsapp)}?text=${encodeURIComponent(waText)}" target="_blank" rel="noopener">WhatsApp ${who}</a>`);
+  if (o.whatsapp) direct.push(`<a class="btn full" data-track="whatsapp" data-pid="${pid}" href="https://wa.me/${digits(o.whatsapp)}?text=${encodeURIComponent(waText)}" target="_blank" rel="noopener">WhatsApp ${who}</a>`);
   if (o.phone) direct.push(`<a class="btn full" data-track="phone" data-pid="${pid}" data-reveal="Phone: ${esc(prettyPhone(o.phone))}" href="tel:+${digits(o.phone)}">Call ${who}</a>`);
   if (o.email) direct.push(`<a class="btn full" data-track="email" data-pid="${pid}" data-reveal="Email: ${esc(o.email)}" href="mailto:${esc(o.email)}?subject=${encodeURIComponent("Enquiry about " + p.name + " (TravelHaven)")}">Email ${who}</a>`);
   app.innerHTML = `<section class="wrap" style="padding-top:16px">
@@ -812,9 +849,9 @@ function renderProperty(pid) {
         ${!sale && (safeUrl(o.payUrl) || o.bankAcctNo) ? `<div class="lbl">Book now · pay the host</div><div class="grp">
           ${safeUrl(o.payUrl) ? `<a class="btn acc full" data-track="booking" data-pid="${pid}" href="${esc(o.payUrl)}" target="_blank" rel="noopener">Book now ↗</a>` : ""}
           ${o.bankAcctNo ? `<button class="btn full" data-bank="${pid}">Pay by bank transfer</button>` : ""}</div>
-          <p class="fine" style="margin:6px 0 0">Confirm your dates and the total with the host on WhatsApp before you pay, then send them your receipt.</p>` : ""}
+          <p class="fine" style="margin:6px 0 0">Message the host to confirm your dates and the total before you pay, then send them your receipt.</p>` : ""}
         ${ext.length ? `<div class="lbl">${sale ? "More details" : "Book on a booking site"}</div><div class="grp">${ext.map(([k, t]) => `<a class="btn acc full" data-track="booking" data-pid="${pid}" href="${esc(o[k])}" target="_blank" rel="noopener">${t} ↗</a>`).join("")}</div>` : ""}
-        ${direct.length ? `<div class="lbl">Contact the ${who}</div><div class="grp">${direct.join("")}</div>` : ""}
+        ${direct.length ? `<div class="lbl">Message or contact the ${who}</div><div class="grp">${direct.join("")}</div>` : ""}
         <div id="reveal"></div>
         <div style="margin-top:16px;display:flex;justify-content:space-between">
           <button class="linkbtn" data-share="${pid}">Copy link</button><button class="linkbtn" data-report="${pid}">Report listing</button></div>
@@ -850,6 +887,8 @@ function renderAccount(needRole) {
         ${r === "host" ? `<a class="btn solid" href="#host">Host dashboard</a> <a class="btn" href="#host-add">+ Add property</a>` : ""}
         ${r === "admin" ? `<a class="btn solid" href="#admin">Admin dashboard</a>` : ""}
       </div>
+      <div class="panel"><label class="chk" style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" data-alerts ${u.emailAlerts === false ? "" : "checked"}>
+        <span><b>Email me when I get a new message</b><br><span class="fine">Sent to ${esc(u.email)}. One email per conversation until you read it.</span></span></label></div>
       <details class="panel"><summary style="cursor:pointer;font-weight:600">Change password</summary>
         <form class="form" id="credForm" style="margin-top:12px">
           ${pwInput("cOld", "Current password", "current-password")}
@@ -1207,7 +1246,18 @@ function adminDash() {
     <div class="panel" style="margin-top:16px"><h3 style="font-size:20px">Sample listings</h3>
       <p class="fine" style="margin:0 0 10px">${P.filter(p => p.sample).length ? `${P.filter(p => p.sample).length} sample listings are showing so the app doesn't look empty while testing.` : "No sample listings. Add a few so testers have something to browse."}</p>
       <div class="chips">${P.filter(p => p.sample).length ? `<button class="btn sm bad" data-samples="off">Remove sample listings</button>` : `<button class="btn sm solid" data-samples="on">Add sample listings</button>`}</div></div>
+    ${emailPanel()}
     ${S.some(s => s.status === "past_due") ? `<div class="notice" style="margin-top:16px">${S.filter(s => s.status === "past_due").length} host(s) have a failed payment. <a href="#admin-subs">Review subscriptions</a>.</div>` : ""}`;
+}
+function emailPanel() {
+  const c = Alerts.cfg || {}, on = Alerts.ready(c);
+  return `<details class="panel" style="margin-top:16px" ${on ? "" : "open"}><summary style="cursor:pointer"><b style="font-size:18px">Email alerts</b> <span class="st ${on ? "approved" : "pending"}">${on ? "on" : "not set up"}</span></summary>
+    <p class="fine" style="margin:10px 0">Guests and hosts get an email when they receive a new message. Uses your free EmailJS account (200 emails a month).</p>
+    <form class="form" id="emailCfg">
+      <div><label class="f" for="ejS">Service ID</label><input class="in" id="ejS" placeholder="service_xxxxxxx" value="${esc(c.serviceId || "")}" autocapitalize="off"></div>
+      <div><label class="f" for="ejT">Template ID</label><input class="in" id="ejT" placeholder="template_xxxxxxx" value="${esc(c.templateId || "")}" autocapitalize="off"></div>
+      <div><label class="f" for="ejK">Public key</label><input class="in" id="ejK" placeholder="Your EmailJS public key" value="${esc(c.publicKey || "")}" autocapitalize="off"></div>
+      <div class="chips"><button class="btn sm solid" type="submit">Save</button>${on ? `<button class="btn sm" type="button" data-ejtest>Send me a test email</button>` : ""}</div></form></details>`;
 }
 function approveBtns(p) {
   return `<a class="btn sm" href="#stay-${p.propertyId}">Preview</a>
@@ -1240,7 +1290,7 @@ function adminReports() {
   const R = DB.all("reports").slice().sort((a, b) => (a.status === "open" ? -1 : 1) - (b.status === "open" ? -1 : 1) || b.at - a.at);
   return `<div class="list">${R.map(r => {
     const p = DB.find("properties", "propertyId", r.propertyId) || { name: "(deleted listing)" };
-    return `<div class="item"><div class="mid"><b>${esc(r.reason)}</b><div class="loc">On <a href="#stay-${r.propertyId}">${esc(p.name)}</a> · by ${esc(r.by === "device" ? "a visitor" : userName(r.by))} · ${fmtDate(r.at)}</div>
+    return `<div class="item"><div class="mid"><b>${esc(r.reason)}</b><div class="loc">${r.threadId ? `<a href="#chat-${esc(r.threadId)}">View chat</a> · ` : ""}On <a href="#stay-${r.propertyId}">${esc(p.name)}</a> · by ${esc(r.by === "device" ? "a visitor" : userName(r.by))} · ${fmtDate(r.at)}</div>
       ${r.details ? `<p style="margin:6px 0">${esc(r.details)}</p>` : ""}<span class="st ${r.status === "open" ? "pending" : "paused"}">${r.status}</span>
       ${r.status === "open" ? `<div class="acts"><button class="btn sm" data-dismiss="${r.reportId}">Dismiss</button><button class="btn sm bad" data-rremove="${r.reportId}">Remove listing</button></div>` : ""}</div></div>`;
   }).join("") || `<div class="empty" style="border:0">No reports.</div>`}</div>`;
@@ -1335,6 +1385,281 @@ async function forgotSubmit() {
 }
 
 /* =========================================================
+   MESSAGING: guests and hosts talk inside TravelHaven.
+   threads/{propertyId_guestId}            one conversation per guest per listing
+   threads/{tid}/messages/{autoId}         { from, text, at }
+   Chats are deleted 120 days after the last message, or by either person.
+   ========================================================= */
+const CHAT_KEEP_DAYS = 120, MSG_MAX = 1000;
+const Chat = (() => {
+  const threads = new Map(), extra = new Map(), drafts = {};
+  let unsubT = null, unsubM = null, msgTid = null, msgs = [], purged = new Set();
+  const myId = () => DB.state.user && DB.state.user.uid;
+  const unreadKey = t => t.hostId === myId() ? "unreadHost" : "unreadGuest";
+  const otherKey = t => t.hostId === myId() ? "unreadGuest" : "unreadHost";
+  const tref = tid => doc(DB.fs, "threads", tid);
+
+  function start() {
+    stop(); const u = myId(); if (!u) { badge(); return; }
+    Alerts.config(true); setTimeout(() => Alerts.ensure(), 1500);
+    unsubT = onSnapshot(query(collection(DB.fs, "threads"), where("participants", "array-contains", u)), s => {
+      threads.clear(); s.forEach(d => threads.set(d.id, Object.assign({ threadId: d.id }, d.data())));
+      purge(); badge();
+      if (location.hash === "#inbox") route(true);
+      else if (location.hash.startsWith("#chat-")) paintHead();
+    }, e => console.warn("threads", e.code));
+  }
+  function stop() { if (unsubT) unsubT(); unsubT = null; closeMsgs(); threads.clear(); extra.clear(); }
+  function closeMsgs() { if (unsubM) unsubM(); unsubM = null; msgTid = null; msgs = []; }
+  const get = tid => threads.get(tid) || extra.get(tid);
+  const list = () => [...threads.values()].sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0));
+  const unread = () => list().reduce((n, t) => n + (+t[unreadKey(t)] || 0), 0);
+  function badge() { const b = document.querySelector("#bnav [data-inbox-badge]"); if (b) { const n = unread(); b.textContent = n > 9 ? "9+" : n; b.hidden = !n; } }
+
+  /* delete chats with no new messages for 90 days */
+  async function purge() {
+    const cut = Date.now() - CHAT_KEEP_DAYS * 864e5;
+    for (const t of list()) if ((t.lastAt || 0) < cut && !purged.has(t.threadId)) { purged.add(t.threadId); remove(t.threadId, true); }
+  }
+  async function remove(tid, quiet) {
+    try {
+      const s = await getDocs(collection(DB.fs, "threads", tid, "messages"));
+      for (const d of s.docs) await deleteDoc(d.ref);
+      try { await deleteDoc(doc(DB.fs, "threads", tid, "alert", "guest")); } catch (e) {}
+      await deleteDoc(tref(tid)); threads.delete(tid); extra.delete(tid);
+      if (!quiet) toast("Chat deleted.");
+      return true;
+    } catch (e) { if (!quiet) toast("Couldn't delete the chat. Try again."); return false; }
+  }
+
+  /* ---------- start a conversation from a listing ---------- */
+  function begin(pid) {
+    const p = DB.find("properties", "propertyId", pid); if (!p) return;
+    if (!me()) { try { sessionStorage.setItem("th_after", pid); } catch (e) {} toast("Sign in or create a free account to message the " + (modeOf(p) === "sale" ? "seller." : "host.")); go("account"); return; }
+    if (p.hostId === myId()) { toast("This is your own listing."); return; }
+    const tid = pid + "_" + myId();
+    if (get(tid)) { go("chat-" + tid); return; }
+    const sale = modeOf(p) === "sale", today = new Date().toISOString().slice(0, 10);
+    modal(`<h3>Message the ${sale ? "seller" : "host"}</h3><p class="fine" style="margin:0 0 10px">About <b>${esc(p.name)}</b>. ${esc(p.hostName || "They")} will reply here in your TravelHaven inbox.</p>
+      <form class="form" id="chatStart" data-pid="${pid}">
+        ${sale ? "" : `<div class="r2"><div><label class="f" for="csIn">Check-in</label><input class="in" id="csIn" type="date" min="${today}"></div>
+          <div><label class="f" for="csOut">Check-out</label><input class="in" id="csOut" type="date" min="${today}"></div></div>
+          <div><label class="f" for="csGuests">Guests</label><input class="in" id="csGuests" type="number" min="1" value="2" inputmode="numeric"></div>`}
+        <div><label class="f" for="csText">Message</label><textarea class="in" id="csText" maxlength="${MSG_MAX}" required>${sale ? "Hi, is this property still available? I'd like to arrange a viewing." : "Hi, is your place available for these dates?"}</textarea></div>
+        <div class="err" id="csErr" role="alert"></div>
+        <button class="btn solid" type="submit">Send message</button></form>`);
+  }
+  async function startSubmit(f) {
+    const pid = f.dataset.pid, p = DB.find("properties", "propertyId", pid), u = me(), sale = modeOf(p) === "sale";
+    const text = $("#csText").value.trim(), err = $("#csErr"), btn = f.querySelector("button[type=submit]");
+    let ci = "", co = "", g = 0;
+    if (!sale) { ci = $("#csIn").value; co = $("#csOut").value; g = +$("#csGuests").value || 0;
+      if ((ci && !co) || (!ci && co)) { err.textContent = "Add both check-in and check-out, or leave both empty."; return; }
+      if (ci && co <= ci) { err.textContent = "Check-out must be after check-in."; return; }
+      if (g > (+p.maxGuests || 99)) { err.textContent = `This place fits up to ${p.maxGuests} guests.`; return; } }
+    if (!text) { err.textContent = "Write a message."; return; }
+    btn.disabled = true;
+    const tid = pid + "_" + u.userId, now = Date.now();
+    const t = { propertyId: pid, propertyName: p.name, mode: sale ? "sale" : "stay", hostId: p.hostId, hostName: p.hostName || "Host", guestId: u.userId, guestName: u.name || "Guest",
+      participants: [u.userId, p.hostId], createdAt: now, lastAt: now, lastText: text.slice(0, 140), lastFrom: u.userId, unreadHost: 1, unreadGuest: 0, blockedBy: "",
+      checkIn: ci, checkOut: co, guests: g };
+    try {
+      await setDoc(tref(tid), t);
+      let first = text;
+      if (ci) first = `Dates: ${niceDay(ci)} to ${niceDay(co)} (${nights(ci, co)} night${nights(ci, co) === 1 ? "" : "s"})${g ? ` · ${g} guest${g === 1 ? "" : "s"}` : ""}\n\n` + text;
+      await addDoc(collection(DB.fs, "threads", tid, "messages"), { from: u.userId, text: first.slice(0, MSG_MAX), at: now });
+      threads.set(tid, Object.assign({ threadId: tid }, t));
+      await Alerts.guestAlert(tid); Alerts.notify(Object.assign({ threadId: tid }, t), first, 0);
+      closeModal(); go("chat-" + tid);
+    } catch (e) { console.warn(e); err.textContent = "Couldn't send. Check your connection and try again."; btn.disabled = false; }
+  }
+  /* continue after signing in from the Message button */
+  function resume() {
+    let pid = ""; try { pid = sessionStorage.getItem("th_after") || ""; sessionStorage.removeItem("th_after"); } catch (e) {}
+    if (!pid) return false;
+    go("stay-" + pid); setTimeout(() => begin(pid), 500); return true;
+  }
+
+  /* ---------- inbox ---------- */
+  function renderInbox() {
+    closeMsgs();
+    if (!me()) { app.innerHTML = `<section class="sec wrap" style="max-width:640px"><div class="eyebrow">Messages</div><h2>Inbox</h2>
+      <div class="empty" style="margin-top:16px">Sign in to message hosts and see your conversations.<br><a class="btn solid" href="#account" style="margin-top:12px">Sign in</a></div></section>`; return; }
+    const L = list();
+    app.innerHTML = `<section class="sec wrap" style="max-width:720px"><div class="eyebrow">Messages</div><h2 style="margin-bottom:16px">Inbox</h2>
+      <div class="list">${L.map(t => {
+        const host = t.hostId === myId(), other = host ? t.guestName : t.hostName, n = +t[unreadKey(t)] || 0;
+        return `<a class="item thr" href="#chat-${esc(t.threadId)}"><span class="av">${esc(initials(other))}</span><div class="mid">
+          <div class="thr-top"><b>${esc(other)}</b><span class="fine">${when(t.lastAt)}</span></div>
+          <div class="loc">${host ? (t.mode === "sale" ? "Buyer · " : "Guest · ") : ""}${esc(t.propertyName)}</div>
+          <div class="thr-last ${n ? "new" : ""}">${t.lastFrom === myId() ? "You: " : ""}${esc(t.lastText)}</div></div>${n ? `<span class="dot" aria-label="${n} unread">${n}</span>` : ""}</a>`;
+      }).join("") || `<div class="empty" style="border:0">No messages yet. Open any stay and tap <b>Message host</b> to start a conversation.</div>`}</div>
+      <p class="fine" style="margin-top:14px">Chats are deleted ${CHAT_KEEP_DAYS} days after the last message.</p></section>`;
+  }
+
+  /* ---------- one conversation ---------- */
+  async function renderChat(tid) {
+    let t = get(tid);
+    if (!t && DB.state.isAdmin) { try { const s = await getDoc(tref(tid)); if (s.exists()) { t = Object.assign({ threadId: tid }, s.data()); extra.set(tid, t); } } catch (e) {} }
+    if (!t) { app.innerHTML = `<section class="sec wrap"><div class="empty">This chat isn't available. It may have been deleted.<br><a class="btn" href="#inbox" style="margin-top:12px">Back to inbox</a></div></section>`; return; }
+    const mine = t.hostId === myId() || t.guestId === myId();
+    app.innerHTML = `<section class="wrap chat" style="padding-top:16px;max-width:720px">
+      <a href="#inbox" class="linkbtn">← Inbox</a>
+      <div id="chatHead"></div>
+      <div class="notice" style="margin:12px 0 0;font-size:13px">Only pay after the host confirms your booking. TravelHaven will never ask for your password or card number in chat.</div>
+      <div id="msgs" class="msgs" aria-live="polite"><div class="fine" style="text-align:center;padding:20px">Loading…</div></div>
+      ${mine ? `<form id="chatForm" class="chatbar" data-tid="${esc(tid)}"><textarea class="in" id="chatText" rows="1" maxlength="${MSG_MAX}" placeholder="Write a message" aria-label="Message">${esc(drafts[tid] || "")}</textarea><button class="btn solid" type="submit">Send</button></form>` : `<p class="fine">Viewing as admin.</p>`}
+    </section>`;
+    paintHead();
+    if (msgTid !== tid) {
+      closeMsgs(); msgTid = tid;
+      unsubM = onSnapshot(query(collection(DB.fs, "threads", tid, "messages"), orderBy("at")), s => {
+        msgs = s.docs.map(d => Object.assign({ id: d.id }, d.data())); paintMsgs(); markRead(tid);
+      }, e => { console.warn("msgs", e.code); const m = $("#msgs"); if (m) m.innerHTML = `<div class="empty">Couldn't load messages.</div>`; });
+    } else { paintMsgs(); markRead(tid); }
+  }
+  function paintHead() {
+    const tid = msgTid || (location.hash.split("chat-")[1] || ""), t = get(tid), h = $("#chatHead"); if (!t || !h) return;
+    const host = t.hostId === myId(), other = host ? t.guestName : t.hostName;
+    const blocked = t.blockedBy, iBlocked = blocked === myId();
+    h.innerHTML = `<div class="chat-head"><span class="av">${esc(initials(other))}</span><div class="mid"><b>${esc(other)}</b>
+        <div class="loc"><a href="#stay-${esc(t.propertyId)}">${esc(t.propertyName)}</a>${t.checkIn ? ` · ${niceDay(t.checkIn)} – ${niceDay(t.checkOut)}` : ""}${t.guests ? ` · ${t.guests} guest${t.guests === 1 ? "" : "s"}` : ""}</div></div>
+        <details class="more"><summary aria-label="More options">⋯</summary><div class="menu">
+          ${blocked ? (iBlocked ? `<button data-chat="unblock">Unblock</button>` : "") : `<button data-chat="block">Block ${esc(String(other).split(" ")[0])}</button>`}
+          <button data-chat="report">Report</button><button data-chat="delete" class="bad">Delete chat</button></div></details></div>`;
+    const f = $("#chatForm");
+    if (f) { const off = !!blocked; f.querySelectorAll("textarea,button").forEach(x => x.disabled = off);
+      let n = $("#blockNote"); if (off && !n) f.insertAdjacentHTML("beforebegin", `<p class="fine" id="blockNote">${iBlocked ? "You blocked this person. Unblock to send messages." : "You can't reply to this conversation."}</p>`); if (!off && n) n.remove(); }
+  }
+  function paintMsgs() {
+    const box = $("#msgs"); if (!box) return;
+    let day = "";
+    box.innerHTML = msgs.map(m => {
+      const d = new Date(m.at).toDateString(), sep = d !== day ? `<div class="day">${dayLabel(m.at)}</div>` : ""; day = d;
+      return sep + `<div class="bub ${m.from === myId() ? "me" : ""}"><div>${esc(m.text)}</div><time>${new Date(m.at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</time></div>`;
+    }).join("") || `<div class="fine" style="text-align:center;padding:20px">No messages yet.</div>`;
+    box.scrollTop = box.scrollHeight;
+    const last = box.lastElementChild; if (last && location.hash.startsWith("#chat-")) last.scrollIntoView({ block: "end" });
+  }
+  function markRead(tid) {
+    const t = threads.get(tid); if (!t || document.hidden) return; const k = unreadKey(t);
+    if (+t[k]) { const sk = k === "unreadHost" ? "seenHost" : "seenGuest", now = Date.now(); t[k] = 0; t[sk] = now; badge(); updateDoc(tref(tid), { [k]: 0, [sk]: now }).catch(() => {}); }
+  }
+  async function send(f) {
+    const tid = f.dataset.tid, t = get(tid), ta = $("#chatText"), text = ta.value.trim(); if (!t || !text) return;
+    const btn = f.querySelector("button"); btn.disabled = true;
+    try {
+      const now = Date.now();
+      await addDoc(collection(DB.fs, "threads", tid, "messages"), { from: myId(), text: text.slice(0, MSG_MAX), at: now });
+      const k = otherKey(t), was = +t[k] || 0; t[k] = was + 1;
+      await updateDoc(tref(tid), { lastAt: now, lastText: text.slice(0, 140), lastFrom: myId(), [k]: t[k] });
+      ta.value = ""; drafts[tid] = ""; ta.style.height = "";
+      Alerts.notify(t, text, was);
+    } catch (e) { console.warn(e); toast(e.code === "permission-denied" ? "You can't send messages in this chat." : "Message not sent. Check your connection."); }
+    btn.disabled = false; ta.focus();
+  }
+  async function action(a) {
+    const tid = msgTid, t = get(tid); if (!t) return;
+    const det = document.querySelector(".chat-head details"); if (det) det.open = false;
+    if (a === "block" || a === "unblock") {
+      try { await updateDoc(tref(tid), { blockedBy: a === "block" ? myId() : "" }); t.blockedBy = a === "block" ? myId() : ""; paintHead(); toast(a === "block" ? "Blocked. They can't message you in this chat." : "Unblocked."); }
+      catch (e) { toast("Couldn't change that. Try again."); } return; }
+    if (a === "report") {
+      modal(`<h3>Report this conversation</h3><form class="form" id="chatReport" data-tid="${esc(tid)}">
+        <div><label class="f" for="crReason">Reason</label><select class="in" id="crReason"><option>Scam or asked for payment before confirming</option><option>Rude or abusive messages</option><option>Spam</option><option>Other</option></select></div>
+        <div><label class="f" for="crText">Details (optional)</label><textarea class="in" id="crText" maxlength="500"></textarea></div>
+        <p class="fine" style="margin:0">Our team will be able to read this conversation to review it.</p>
+        <button class="btn solid" type="submit">Send report</button></form>`); return; }
+    if (a === "delete") {
+      modal(`<h3>Delete this chat?</h3><p>The conversation will be deleted for both of you. This can't be undone.</p>
+        <div class="chips" style="margin-top:12px"><button class="btn bad" data-chat="delete-yes">Delete chat</button><button class="btn" data-close>Cancel</button></div>`); return; }
+    if (a === "delete-yes") { closeModal(); const ok = await remove(tid); if (ok) { closeMsgs(); go(DB.state.isAdmin && t.hostId !== myId() && t.guestId !== myId() ? "admin-reports" : "inbox"); } }
+  }
+  function reportSubmit(f) {
+    const t = get(f.dataset.tid), u = me();
+    DB.insert("reports", { reportId: DB.id("r"), propertyId: t.propertyId, threadId: t.threadId, reason: "Chat: " + $("#crReason").value, details: $("#crText").value.trim().slice(0, 500), by: u.userId, byName: u.name, at: Date.now(), status: "open" });
+    closeModal(); toast("Thanks. Our team will review this conversation.");
+  }
+  return { threadsList: list, start, stop, closeMsgs, begin, startSubmit, resume, renderInbox, renderChat, send, action, reportSubmit, badge, unread, drafts };
+})();
+
+const niceDay = d => d ? new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+const nights = (a, b) => Math.round((new Date(b + "T12:00:00") - new Date(a + "T12:00:00")) / 864e5);
+function when(t) {
+  if (!t) return ""; const d = new Date(t), now = new Date();
+  if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+function dayLabel(t) {
+  const d = new Date(t), now = new Date(), y = new Date(now - 864e5);
+  if (d.toDateString() === now.toDateString()) return "Today"; if (d.toDateString() === y.toDateString()) return "Yesterday";
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
+/* =========================================================
+   EMAIL ALERTS (EmailJS, free plan). The admin saves the EmailJS
+   IDs in Admin. Each person's alert address is stored where only
+   their chat partner can read it:
+     properties/{pid}/alert/host   (readable once you have a chat about that listing)
+     threads/{tid}/alert/guest     (readable by the two people in the chat)
+   One email per batch: only when the other person had no unread messages.
+   ========================================================= */
+const Alerts = (() => {
+  let cfg = null, cfgLoaded = false; const done = new Set();
+  async function config(force) {
+    if (cfgLoaded && !force) return cfg;
+    try { const s = await getDoc(doc(DB.fs, "settings", "emailjs")); cfg = s.exists() ? s.data() : null; } catch (e) { cfg = null; }
+    cfgLoaded = true; if (location.hash === "#admin") route(true); return cfg;
+  }
+  const ready = c => c && c.serviceId && c.templateId && c.publicKey;
+  const wants = () => { const u = me(); return !(u && u.emailAlerts === false); };
+  /* hosts: keep an alert address on each of their listings */
+  function ensure(force) {
+    const a = DB.state.user, u = me(); if (!a || !u) return;
+    DB.all("properties").filter(p => p.hostId === a.uid).forEach(p => {
+      if (done.has(p.propertyId) && !force) return; done.add(p.propertyId);
+      setDoc(doc(DB.fs, "properties", p.propertyId, "alert", "host"), { email: a.email, name: u.name || "", on: wants() }).catch(() => done.delete(p.propertyId));
+    });
+  }
+  async function guestAlert(tid) {
+    const a = DB.state.user, u = me(); if (!a) return;
+    try { await setDoc(doc(DB.fs, "threads", tid, "alert", "guest"), { email: a.email, name: u.name || "", on: wants() }); } catch (e) {}
+  }
+  /* turn my alerts on/off everywhere */
+  async function setMine(on) {
+    const u = me(); if (!u) return;
+    DB.update("users", "userId", u.userId, { emailAlerts: on });
+    ensure(true);
+    for (const t of Chat.threadsList()) if (t.guestId === u.userId) guestAlert(t.threadId);
+  }
+  async function send(to, params) {
+    const c = await config(); if (!ready(c) || !to || !to.email || to.on === false) return false;
+    try {
+      const r = await fetch("https://api.emailjs.com/api/v1.0/email/send", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ service_id: c.serviceId, template_id: c.templateId, user_id: c.publicKey,
+          template_params: Object.assign({ to_email: to.email, to_name: to.name || "there", site: "TravelHaven" }, params) }) });
+      return r.ok;
+    } catch (e) { return false; }
+  }
+  /* called after I send a message; t = thread, wasUnread = the other person's unread count before this message */
+  async function notify(t, text, wasUnread) {
+    if (wasUnread > 0) return; // they already have an email waiting
+    const iAmGuest = t.guestId === (DB.state.user && DB.state.user.uid);
+    if (Date.now() - (+t[iAmGuest ? "seenHost" : "seenGuest"] || 0) < 3 * 60e3) return; // they're reading the chat right now
+    let to = null;
+    try { const s = await getDoc(iAmGuest ? doc(DB.fs, "properties", t.propertyId, "alert", "host") : doc(DB.fs, "threads", t.threadId, "alert", "guest")); to = s.exists() ? s.data() : null; } catch (e) {}
+    if (!to) return;
+    const link = location.origin + location.pathname + "#chat-" + t.threadId;
+    send(to, { from_name: iAmGuest ? t.guestName : t.hostName, listing: t.propertyName, message: String(text).slice(0, 400), link });
+  }
+  async function test(email) {
+    return send({ email, name: (me() || {}).name || "Admin", on: true }, { from_name: "TravelHaven", listing: "Test listing", message: "This is a test email alert from TravelHaven. If you got this, email alerts are working.", link: location.origin + location.pathname + "#inbox" });
+  }
+  async function saveConfig(c) { await setDoc(doc(DB.fs, "settings", "emailjs"), c); cfg = c; cfgLoaded = true; }
+  return { config, ensure, guestAlert, setMine, notify, test, saveConfig, ready, get cfg() { return cfg; } };
+})();
+
+/* =========================================================
    Events
    ========================================================= */
 function refreshResults() {
@@ -1366,8 +1691,10 @@ document.addEventListener("change", e => {
   }
 
 });
+document.addEventListener("change", e => { if (e.target.matches("[data-alerts]")) { Alerts.setMine(e.target.checked); toast(e.target.checked ? "Email alerts on." : "Email alerts off."); } });
 document.addEventListener("input", e => {
   if (e.target.id === "wPrice") updWizPrice();
+  if (e.target.id === "chatText") { const t = e.target, f = t.closest("form"); if (f) Chat.drafts[f.dataset.tid] = t.value; t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 160) + "px"; }
 });
 function updWizPrice() {
   const i = $("#wPrice"); if (!i) return; const sale = i.dataset.sale === "true", u = $("#wUnit") ? $("#wUnit").value : "night", v = +i.value;
@@ -1398,6 +1725,9 @@ document.addEventListener("click", e => {
     track(el.dataset.track, el.dataset.pid);
     if (el.dataset.reveal) { $("#reveal").innerHTML = `<div class="reveal">${el.dataset.reveal}</div>`; }
     return; }
+  if ((el = c("[data-ejtest]"))) { el.disabled = true; Alerts.test(DB.state.user.email).then(ok => { toast(ok ? "Test email sent to " + DB.state.user.email + ". Check your inbox." : "Couldn't send. Check the three IDs in EmailJS."); el.disabled = false; }); return; }
+  if ((el = c("[data-msg]"))) { Chat.begin(el.dataset.msg); return; }
+  if ((el = c("[data-chat]"))) { Chat.action(el.dataset.chat); return; }
   if ((el = c("[data-bank]"))) {
     const pid = el.dataset.bank, p = DB.find("properties", "propertyId", pid), o = optionsOf(pid); track("booking", pid);
     const ref = "TH-" + String(pid).slice(-5).toUpperCase(), row = (k, v) => v ? `<div class="item" style="padding:10px 0"><div class="mid"><span class="f">${k}</span><b style="word-break:break-all">${esc(v)}</b></div><button class="btn sm" data-copy="${esc(v)}">Copy</button></div>` : "";
@@ -1476,6 +1806,12 @@ document.addEventListener("submit", e => {
     if (s.status === "past_due" || s.status === "expired") { const ok = charge(s, false); toast(ok ? "Payment method saved and payment received." : "Payment method saved, but the payment failed."); }
     else toast("Payment method saved.");
     route(); return; }
+  if (f.id === "emailCfg") {
+    const v = { serviceId: $("#ejS").value.trim(), templateId: $("#ejT").value.trim(), publicKey: $("#ejK").value.trim() };
+    Alerts.saveConfig(v).then(() => { toast(Alerts.ready(v) ? "Email alerts saved." : "Saved. Fill in all three to turn alerts on."); route(); }, () => toast("Couldn't save. Did you publish the new Firebase rules?")); return; }
+  if (f.id === "chatStart") { Chat.startSubmit(f); return; }
+  if (f.id === "chatForm") { Chat.send(f); return; }
+  if (f.id === "chatReport") { Chat.reportSubmit(f); return; }
   if (f.id === "reportForm") {
     DB.insert("reports", { reportId: DB.id("r"), propertyId: f.dataset.pid, reason: $("#rpReason").value, details: $("#rpText").value.trim().slice(0, 500), by: me() ? me().userId : "visitor", byName: me() ? me().name : "", at: Date.now(), status: "open" });
     closeModal(); toast("Thanks. Our team will review this listing."); return; }
@@ -1486,7 +1822,7 @@ document.addEventListener("submit", e => {
 async function loginSubmit() {
   const email = $("#lEmail").value.trim(), pass = $("#lPass").value, btn = document.querySelector("#loginForm button[type=submit]");
   btn.disabled = true;
-  try { await DB.fx.signInWithEmailAndPassword(DB.auth, email, pass); toast("Welcome back"); setTimeout(() => go(role() === "admin" ? "admin" : role() === "host" ? "host" : "home"), 600); }
+  try { await DB.fx.signInWithEmailAndPassword(DB.auth, email, pass); toast("Welcome back"); setTimeout(() => Chat.resume() || go(role() === "admin" ? "admin" : role() === "host" ? "host" : "home"), 600); }
   catch (x) { $("#lErr").textContent = authError(x); }
   finally { if (btn.isConnected) btn.disabled = false; }
 }
@@ -1501,7 +1837,7 @@ async function guestSubmit() {
     DB.fx.sendEmailVerification(cred.user).catch(() => {});
     await DB.writeNow("users", { userId: cred.user.uid, name: n, email: em, accountType: "guest", country: co.toUpperCase().slice(0, 30), status: "active", createdAt: Date.now() });
     await DB.waitFor(() => DB.find("users", "userId", cred.user.uid));
-    toast("Account created. Check your email to confirm it."); go("home");
+    toast("Account created. Check your email to confirm it."); Chat.resume() || go("home");
   } catch (x) { $("#gErr").textContent = authError(x); }
   finally { DB.state.pendingProfile = false; if (btn.isConnected) btn.disabled = false; }
 }
