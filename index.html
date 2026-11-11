@@ -318,14 +318,10 @@ function tickSubscriptions() {
   DB.all("subscriptions").forEach(s => {
     if (!DB.state.isAdmin && !(DB.state.user && s.hostId === DB.state.user.uid)) return;
     s.plan = planFor(s.hostId);
-    // registration fee: taken automatically on day 52 if a payment method is saved
-    if (!s.regPaid && now >= regDueAt(s) && s.card && s.autoRenew && !s.regTried && ["trial", "active"].includes(s.status)) { s.regTried = true; payReg(s); }
-    if (s.status === "trial" && now > s.trialEndsAt) {
-      if (!s.regPaid) { s.status = "past_due"; s.currentPeriodEnd = s.trialEndsAt; }
-      else if (s.autoRenew && s.card) charge(s, true); else { s.status = s.autoRenew ? "past_due" : "expired"; }
-    } else if (s.status === "active" && now > s.currentPeriodEnd) {
-      if (s.autoRenew) charge(s, true); else s.status = "expired";
-    } else if (s.status === "cancelled" && now > s.currentPeriodEnd) {
+    // Hosts pay by PayPal or bank transfer and the admin confirms it. Free periods don't run down before launch.
+    if (s.status === "trial" && typeof Site !== "undefined" && Site.prelaunch()) return;
+    if (s.status === "trial" && now > s.trialEndsAt) { s.status = "past_due"; s.currentPeriodEnd = s.trialEndsAt; }
+    else if (s.status === "active" && now > s.currentPeriodEnd) { s.status = "past_due"; } else if (s.status === "cancelled" && now > s.currentPeriodEnd) {
       s.status = "expired";
     } else if (s.status === "past_due" && now > s.currentPeriodEnd + GRACE_DAYS * DAY) {
       s.status = "expired";
@@ -577,7 +573,7 @@ onAuthStateChanged(auth, async u => {
     } catch (e) { console.warn(e); }
   }
   DB.startListeners();
-  Chat.start();
+  Chat.start(); Site.startPay();
   // carry device favourites into the account
   if (u) DB.takeDeviceFavs().forEach(pid => DB.insert("favorites", { favId: u.uid + "_" + pid, userId: u.uid, propertyId: pid }));
   DB.state.ready = true;
@@ -679,6 +675,7 @@ function route(soft) {
   else if (h === "search" || h === "buy") { const m = h === "buy" ? "sale" : "stay"; if (state.q.mode !== m) Object.assign(state.q, { mode: m, unit: "", type: "", min: "", max: "", guests: 0, sort: "featured" }); renderSearch(); }
   else if (base === "stay") renderProperty(arg);
   else if (h === "favorites") renderFavorites();
+  else if (h === "contact") renderContact();
   else if (h === "inbox") { page = "inbox"; Chat.renderInbox(); }
   else if (base === "chat") { page = "inbox"; Chat.renderChat(arg); }
   else if (h === "account") renderAccount();
@@ -758,7 +755,8 @@ function renderHome() {
   <section class="hero"><div class="wrap">
     <div class="eyebrow" style="color:#fff;opacity:.9">Jamaica · Rent or short stays</div>
     <h1>Rent or short stays in Jamaica, straight from the host.</h1>
-    <p>Find a place, then book and pay the host directly, or reach them on WhatsApp, phone or email.</p>
+    <p>Find a place, then book and pay the host directly.</p>
+    ${Site.prelaunch() ? `<p class="fine" style="color:#fff;opacity:.92;margin-top:-6px">Coming soon: ${esc(Site.opensText().replace(/^B/, "b"))}. Browse and message hosts now.</p>` : ""}
     <form class="search" id="heroSearch" role="search">${searchFields("h", true)}<button class="go" type="submit">Search stays</button></form>
   </div></section>
   <section class="sec wrap">
@@ -784,7 +782,7 @@ function renderHome() {
 }
 function footer() {
   return `<footer><div class="wrap"><a class="logo" href="#home" style="font-size:22px">TravelHaven <span>Caribbean</span></a>
-    <p style="max-width:56ch">A directory of short stays and homes for sale in Jamaica. TravelHaven does not process reservations, sales or payments: hosts, owners and agents handle everything directly with you.</p>
+    <p style="margin:10px 0"><a href="#contact">Contact us</a></p><p style="max-width:56ch">A directory of short stays and homes for sale in Jamaica. TravelHaven does not process reservations, sales or payments: hosts, owners and agents handle everything directly with you.</p>
     <p class="fine">Prototype 0 · Sample data only · Launching in ${C.name}, more islands later.</p></div></footer>`;
 }
 
@@ -845,8 +843,9 @@ function renderProperty(pid) {
       </div>
       <aside class="book" aria-label="${sale ? "Contact the seller" : "Book with host"}">
         <h3>${sale ? "Contact the seller" : "Book with host"}</h3>
-        <p class="fine">${sale ? "TravelHaven doesn't handle sales or payments. View the property in person and use a lawyer before paying anything." : "Book and pay the host directly here. Your money goes straight to the host."}</p>
-        ${!sale && (safeUrl(o.payUrl) || o.bankAcctNo) ? `<div class="lbl">Book now · pay the host</div><div class="grp">
+        <p class="fine">${sale ? "TravelHaven doesn't handle sales or payments. View the property in person and use a lawyer before paying anything." : (Site.prelaunch() ? "Message the host now with any questions." : "Book and pay the host directly here. Your money goes straight to the host.")}</p>
+        ${!sale && Site.prelaunch() ? `<div class="notice" style="margin:12px 0 0"><b>${esc(Site.opensText())}.</b> You can browse and message hosts now.</div>` : ""}
+        ${!sale && !Site.prelaunch() && (safeUrl(o.payUrl) || o.bankAcctNo) ? `<div class="lbl">Book now · pay the host</div><div class="grp">
           ${safeUrl(o.payUrl) ? `<a class="btn acc full" data-track="booking" data-pid="${pid}" href="${esc(o.payUrl)}" target="_blank" rel="noopener">Book now ↗</a>` : ""}
           ${o.bankAcctNo ? `<button class="btn full" data-bank="${pid}">Pay by bank transfer</button>` : ""}</div>
           <p class="fine" style="margin:6px 0 0">Message the host to confirm your dates and the total before you pay, then send them your receipt.</p>` : ""}
@@ -895,6 +894,7 @@ function renderAccount(needRole) {
           ${pwInput("cNew", "New password", "new-password", pwHint)}
           <div class="err" id="cErr" role="alert"></div>
           <button class="btn" type="submit">Change password</button></form></details>
+      <a class="btn" href="#contact" style="margin-top:16px">Contact TravelHaven</a>
       <button class="btn bad" data-logout style="margin-top:16px">Sign out</button>
       <p class="fine" style="margin-top:18px">Prototype: listings and accounts are shared with everyone testing TravelHaven. No real bookings or payments happen here.</p></section>`;
     return;
@@ -977,9 +977,9 @@ function renderHostDash() {
   const good = hostInGoodStanding(u.userId);
   let subLine = "";
   if (!s) subLine = `No subscription.`;
-  else if (s.status === "trial") subLine = `Free period: <b>${daysLeft(s.trialEndsAt)} days left</b> (ends ${fmtDate(s.trialEndsAt)}). ${s.card ? "You'll be charged automatically after." : "Add a payment method to keep your listings live after."}`;
-  else if (s.status === "active") subLine = `Next payment of <b>US$${plan.price}</b> on ${fmtDate(s.currentPeriodEnd)}. ${s.autoRenew ? "Renews automatically." : "Auto-renew is off."}`;
-  else if (s.status === "past_due") subLine = `Your last payment failed. Listings stay live until <b>${fmtDate(s.currentPeriodEnd + GRACE_DAYS * DAY)}</b>. Update your payment method to fix it.`;
+  else if (s.status === "trial") subLine = `Free period: <b>${daysLeft(s.trialEndsAt)} days left</b> (ends ${fmtDate(s.trialEndsAt)}). ${typeof Site !== "undefined" && Site.prelaunch() ? "Your free days don't count down until TravelHaven officially launches." : "Pay the monthly fee before it ends to keep your listings live."}`;
+  else if (s.status === "active") subLine = `Paid until <b>${fmtDate(s.currentPeriodEnd)}</b>. Next payment: US$${plan.price}.`;
+  else if (s.status === "past_due") subLine = `Your last payment failed. Listings stay live until <b>${fmtDate(s.currentPeriodEnd + GRACE_DAYS * DAY)}</b>. Pay now to keep them live.`;
   else if (s.status === "cancelled") subLine = `Cancelled. Listings stay live until ${fmtDate(s.currentPeriodEnd)}.`;
   else if (s.status === "expired") subLine = `Expired. Your listings are hidden from guests until you restart.`;
   app.innerHTML = `<section class="sec wrap">
@@ -996,12 +996,9 @@ function renderHostDash() {
       <p style="margin:0 0 6px">Plan: <b>${plan.label} · US$${plan.price}/month</b> (${props.length} ${props.length === 1 ? "property" : "properties"})</p>
       <p style="margin:0 0 12px">${subLine}</p>
       ${s ? regLine(s) : ""}
-      <p class="fine" style="margin:0 0 12px">Payment method: ${s && s.card ? esc(s.card.label) : "none yet"}</p>
+      ${hostPayPanel(s)}
       <div class="chips">
-        ${s && !s.regPaid && Date.now() >= regDueAt(s) - REG_NOTICE_DAYS * DAY ? `<button class="btn sm acc" data-sub="reg">Pay registration fee (US$${REG_FEE})</button>` : ""}
-        <button class="btn sm solid" data-sub="card">${s && s.card ? "Update payment method" : "Add payment method"}</button>
-        ${s && (s.status === "past_due" || s.status === "expired") ? `<button class="btn sm acc" data-sub="retry">Pay now</button>` : ""}
-        ${s && ["trial", "active", "past_due"].includes(s.status) ? `<button class="btn sm" data-sub="autorenew">${s.autoRenew ? "Turn off auto-renew" : "Turn on auto-renew"}</button><button class="btn sm bad" data-sub="cancel">Cancel subscription</button>` : ""}
+        ${s && ["trial", "active", "past_due"].includes(s.status) ? `<button class="btn sm bad" data-sub="cancel">Cancel subscription</button>` : ""}
         ${s && s.status === "cancelled" ? `<button class="btn sm" data-sub="resume">Resume subscription</button>` : ""}
         <button class="btn sm" data-sub="history">Billing history</button></div>
     </div>
@@ -1246,6 +1243,7 @@ function adminDash() {
     <div class="panel" style="margin-top:16px"><h3 style="font-size:20px">Sample listings</h3>
       <p class="fine" style="margin:0 0 10px">${P.filter(p => p.sample).length ? `${P.filter(p => p.sample).length} sample listings are showing so the app doesn't look empty while testing.` : "No sample listings. Add a few so testers have something to browse."}</p>
       <div class="chips">${P.filter(p => p.sample).length ? `<button class="btn sm bad" data-samples="off">Remove sample listings</button>` : `<button class="btn sm solid" data-samples="on">Add sample listings</button>`}</div></div>
+    ${siteAdminPanels()}
     ${emailPanel()}
     ${S.some(s => s.status === "past_due") ? `<div class="notice" style="margin-top:16px">${S.filter(s => s.status === "past_due").length} host(s) have a failed payment. <a href="#admin-subs">Review subscriptions</a>.</div>` : ""}`;
 }
@@ -1297,18 +1295,17 @@ function adminReports() {
 }
 function adminSubs() {
   const S = DB.all("subscriptions");
-  return `<p class="fine" style="margin-top:0">Prices: 1–2 properties US$${PLANS.small.price}/month, 3+ properties US$${PLANS.large.price}/month. ${TRIAL_DAYS}-day free period, one-time US$${REG_FEE} registration fee due on day ${REG_DAY}, ${GRACE_DAYS}-day grace after a failed payment.</p>
+  return `${adminClaims()}<p class="fine" style="margin-top:0">Prices: 1–2 properties US$${PLANS.small.price}/month, 3+ properties US$${PLANS.large.price}/month. ${TRIAL_DAYS}-day free period, one-time US$${REG_FEE} registration fee due on day ${REG_DAY}, ${GRACE_DAYS}-day grace after a failed payment.</p>
   <div class="list">${S.map(s => {
     const u = DB.find("users", "userId", s.hostId) || {};
     const end = s.status === "trial" ? s.trialEndsAt : s.currentPeriodEnd;
     return `<div class="item"><div class="mid"><b>${esc(u.name || "Deleted host")}</b>
-      <div class="loc">${PLANS[s.plan].label} · US$${PLANS[s.plan].price}/month · ${s.card ? esc(s.card.label) : "no payment method"}</div>
-      <div class="fine">${s.status === "trial" ? "Free period ends" : s.status === "expired" ? "Ended" : "Current period ends"} ${fmtDate(end)} · auto-renew ${s.autoRenew ? "on" : "off"}${s.failedAttempts ? ` · ${s.failedAttempts} failed payment(s)` : ""}</div>
+      <div class="loc">${PLANS[s.plan].label} · US$${PLANS[s.plan].price}/month · reference ${hostRef(s.hostId)}</div>
+      <div class="fine">${s.status === "trial" ? "Free period ends" : s.status === "expired" ? "Ended" : "Current period ends"} ${fmtDate(end)}${s.failedAttempts ? ` · ${s.failedAttempts} failed payment(s)` : ""}</div>
       <div class="fine">Registration fee (US$${REG_FEE}): ${s.regPaid ? "paid" + (s.regPaidAt ? " " + fmtDate(s.regPaidAt) : "") : (Date.now() > regDueAt(s) ? "<b>overdue</b> since " : "due ") + fmtDate(regDueAt(s))}</div>
       <span class="st ${s.status}">${s.status.replace("_", " ")}</span>
-      <div class="acts"><button class="btn sm" data-adm-sub="paid" data-sid="${s.hostId}">Record payment</button>
+      <div class="acts"><button class="btn sm" data-adm-sub="paid" data-sid="${s.hostId}">Record monthly payment</button>
         ${s.regPaid ? "" : `<button class="btn sm" data-adm-sub="reg" data-sid="${s.hostId}">Record registration fee</button>`}
-        <button class="btn sm" data-adm-sub="fail" data-sid="${s.hostId}">Simulate failed payment</button>
         <button class="btn sm" data-adm-sub="extend" data-sid="${s.hostId}">+30 days free</button>
         ${s.status !== "cancelled" && s.status !== "expired" ? `<button class="btn sm bad" data-adm-sub="cancel" data-sid="${s.hostId}">Cancel</button>` : ""}
         <button class="btn sm" data-adm-sub="expire" data-sid="${s.hostId}">Force expire</button></div></div></div>`;
@@ -1605,7 +1602,7 @@ function dayLabel(t) {
    One email per batch: only when the other person had no unread messages.
    ========================================================= */
 const Alerts = (() => {
-  let cfg = null, cfgLoaded = false; const done = new Set();
+  let cfg = null, cfgLoaded = false, lastErr = ""; const done = new Set();
   async function config(force) {
     if (cfgLoaded && !force) return cfg;
     try { const s = await getDoc(doc(DB.fs, "settings", "emailjs")); cfg = s.exists() ? s.data() : null; } catch (e) { cfg = null; }
@@ -1633,13 +1630,14 @@ const Alerts = (() => {
     for (const t of Chat.threadsList()) if (t.guestId === u.userId) guestAlert(t.threadId);
   }
   async function send(to, params) {
-    const c = await config(); if (!ready(c) || !to || !to.email || to.on === false) return false;
+    const c = await config(); lastErr = !ready(c) ? "The three IDs aren't saved yet." : ""; if (!ready(c) || !to || !to.email || to.on === false) return false;
     try {
       const r = await fetch("https://api.emailjs.com/api/v1.0/email/send", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ service_id: c.serviceId, template_id: c.templateId, user_id: c.publicKey,
           template_params: Object.assign({ to_email: to.email, to_name: to.name || "there", site: "TravelHaven" }, params) }) });
+      if (!r.ok) lastErr = (await r.text().catch(() => "")) || ("Error " + r.status);
       return r.ok;
-    } catch (e) { return false; }
+    } catch (e) { lastErr = "No connection to EmailJS (" + (e.message || e) + ")"; return false; }
   }
   /* called after I send a message; t = thread, wasUnread = the other person's unread count before this message */
   async function notify(t, text, wasUnread) {
@@ -1656,8 +1654,145 @@ const Alerts = (() => {
     return send({ email, name: (me() || {}).name || "Admin", on: true }, { from_name: "TravelHaven", listing: "Test listing", message: "This is a test email alert from TravelHaven. If you got this, email alerts are working.", link: location.origin + location.pathname + "#inbox" });
   }
   async function saveConfig(c) { await setDoc(doc(DB.fs, "settings", "emailjs"), c); cfg = c; cfgLoaded = true; }
-  return { config, ensure, guestAlert, setMine, notify, test, saveConfig, ready, get cfg() { return cfg; } };
+  return { config, ensure, guestAlert, setMine, notify, test, saveConfig, ready, get cfg() { return cfg; }, get lastErr() { return lastErr; } };
 })();
+
+/* =========================================================
+   SITE SETTINGS (admin-editable, no new upload needed)
+   settings/site      public: pre-launch mode, launch date, contact details
+   settings/payments  signed-in: where hosts pay TravelHaven (PayPal, bank)
+   ========================================================= */
+const DEFAULT_CONTACT = { emails: ["travelhavenja@gmail.com", "authorityart28@gmail.com"], phone: "", whatsapp: "" };
+const Site = (() => {
+  let site = null, pay = null, unsubS = null, unsubP = null;
+  function start() {
+    if (!unsubS) unsubS = onSnapshot(doc(DB.fs, "settings", "site"), d => { site = d.exists() ? d.data() : null; if (DB.state.ready && !/^#(host-add|host-edit|admin)/.test(location.hash)) route(true); }, () => {});
+  }
+  function startPay() {
+    if (unsubP) unsubP(); unsubP = null; pay = null;
+    if (DB.state.user) unsubP = onSnapshot(doc(DB.fs, "settings", "payments"), d => { pay = d.exists() ? d.data() : null; if (/^#(host|admin)/.test(location.hash) && !/^#(host-add|host-edit)/.test(location.hash)) route(true); }, () => {});
+  }
+  const prelaunch = () => !site || site.prelaunch !== false;
+  const launchDate = () => site && site.launchDate ? site.launchDate : "";
+  const opensText = () => launchDate() ? `Booking opens on ${new Date(launchDate() + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}` : "Booking opens on launch date";
+  const contact = () => Object.assign({}, DEFAULT_CONTACT, site && site.contact || {});
+  const payments = () => pay || {};
+  const payReady = () => { const p = payments(); return !!(safeUrl(p.paypal) || p.bankAcctNo); };
+  async function saveSite(patch) { const next = Object.assign({}, site || {}, patch); await setDoc(doc(DB.fs, "settings", "site"), next); site = next; }
+  async function savePay(v) { await setDoc(doc(DB.fs, "settings", "payments"), v); pay = v; }
+  return { start, startPay, prelaunch, launchDate, opensText, contact, payments, payReady, saveSite, savePay, get raw() { return site; } };
+})();
+Site.start();
+
+/* ---------- Contact page ---------- */
+function renderContact() {
+  const c = Site.contact(), emails = (c.emails || []).filter(Boolean);
+  app.innerHTML = `<section class="sec wrap" style="max-width:640px">
+    <div class="eyebrow">TravelHaven</div><h2>Contact us</h2>
+    <p class="fine" style="font-size:15px;margin:10px 0 18px">Questions about listing your property, a booking, or something you saw on TravelHaven? Get in touch and we'll reply as soon as we can.</p>
+    <div class="list">
+      ${emails.map(e => `<div class="item"><div class="mid"><span class="f">Email</span><b style="word-break:break-all">${esc(e)}</b></div><a class="btn sm solid" href="mailto:${esc(e)}?subject=${encodeURIComponent("TravelHaven enquiry")}">Email</a></div>`).join("")}
+      ${c.phone ? `<div class="item"><div class="mid"><span class="f">Phone</span><b>${esc(prettyPhone(c.phone))}</b></div><a class="btn sm" href="tel:+${digits(c.phone)}">Call</a></div>` : ""}
+      ${c.whatsapp ? `<div class="item"><div class="mid"><span class="f">WhatsApp</span><b>${esc(prettyPhone(c.whatsapp))}</b></div><a class="btn sm" href="https://wa.me/${digits(c.whatsapp)}" target="_blank" rel="noopener">WhatsApp</a></div>` : ""}
+    </div>
+    <div class="panel" style="margin-top:16px"><h3 style="font-size:20px">Hosts, owners and agents</h3>
+      <p class="fine" style="margin:0 0 12px">List short stays or homes for sale. ${TRIAL_DAYS} days free, no commission on bookings.</p>
+      <a class="btn" href="${role() === "host" ? "#host" : "#host-join"}">${role() === "host" ? "Go to your dashboard" : "Become a host"}</a></div>
+    <p class="fine" style="margin-top:16px">To report a listing or a message, use the <b>Report</b> button on that listing or chat so we can see what it's about.</p>
+  </section>${footer()}`;
+}
+
+/* ---------- Hosts paying TravelHaven ---------- */
+const hostRef = uid => "TH-" + String(uid || "").slice(-5).toUpperCase();
+function hostPayPanel(s) {
+  if (!s) return "";
+  const plan = PLANS[planFor(s.hostId)], now = Date.now();
+  if (s.claim) return `<div class="notice ok" style="margin:0 0 10px">You told us you paid <b>US$${s.claim.amount}</b> (${s.claim.kind === "reg" ? "registration fee" : "monthly fee"}) on ${fmtDate(s.claim.at)}. We'll confirm it soon.</div>`;
+  const rejected = s.claimRejectedAt && now - s.claimRejectedAt < 14 * DAY ? `<div class="notice bad" style="margin:0 0 10px">We couldn't find your last payment. Please check the reference and try again, or <a href="#contact">contact us</a>.</div>` : "";
+  const due = [];
+  if (!s.regPaid) due.push(`<button class="btn sm acc" data-hpay="reg">Pay registration fee (US$${REG_FEE})</button>`);
+  const end = s.status === "trial" ? s.trialEndsAt : s.currentPeriodEnd;
+  if (s.status !== "cancelled" && (s.status === "past_due" || s.status === "expired" || end - now < 10 * DAY)) due.push(`<button class="btn sm ${s.status === "trial" ? "" : "acc"}" data-hpay="month">Pay monthly fee (US$${plan.price})</button>`);
+  if (!Site.payReady()) return rejected + `<p class="fine" style="margin:0 0 10px">Payment options are coming soon. Nothing to pay right now.</p>`;
+  return rejected + (due.length ? `<div class="chips" style="margin:0 0 10px">${due.join("")}</div>` : `<p class="fine" style="margin:0 0 10px">Nothing to pay right now.</p>`);
+}
+function hostPayModal(kind) {
+  const u = me(), s = subOf(u.userId), p = Site.payments(), ref = hostRef(u.userId);
+  const amount = kind === "reg" ? REG_FEE : PLANS[planFor(u.userId)].price, what = kind === "reg" ? "one-time registration fee" : "monthly fee";
+  const row = (k, v) => v ? `<div class="item" style="padding:10px 0"><div class="mid"><span class="f">${k}</span><b style="word-break:break-all">${esc(v)}</b></div><button class="btn sm" data-copy="${esc(v)}">Copy</button></div>` : "";
+  const pp = safeUrl(p.paypal) ? p.paypal.replace(/\/+$/, "") + (/paypal\.me\//i.test(p.paypal) ? `/${amount}USD` : "") : "";
+  modal(`<h3>Pay US$${amount}</h3><p class="fine" style="margin:0 0 10px">Your TravelHaven ${what}. Use the reference <b>${ref}</b> so we know it's from you.</p>
+    ${pp ? `<a class="btn solid full" href="${esc(pp)}" target="_blank" rel="noopener">Pay with PayPal ↗</a>` : ""}
+    ${p.bankAcctNo ? `<div class="lbl" style="margin-top:14px">Or pay by bank transfer</div><div class="list" style="border:0">${row("Bank", p.bankName)}${row("Branch", p.bankBranch)}${row("Account name", p.bankAcctName)}${row("Account number", p.bankAcctNo)}${row("Account type", p.bankCur === "USD" ? "US dollar account" : "Jamaican dollar account (pay the JMD equivalent)")}${row("Reference", ref)}</div>` : ""}
+    ${p.note ? `<p class="fine">${esc(p.note)}</p>` : ""}
+    <div class="notice" style="margin-top:12px">After paying, tap <b>I've paid</b>. We'll check and confirm it, usually within a day.</div>
+    <div class="chips" style="margin-top:12px"><button class="btn solid" data-hpaid="${kind}">I've paid</button><button class="btn" data-close>Not yet</button></div>`);
+}
+function hostPaid(kind) {
+  const u = me(), s = subOf(u.userId); if (!s) return;
+  s.claim = { kind, amount: kind === "reg" ? REG_FEE : PLANS[planFor(u.userId)].price, at: Date.now(), ref: hostRef(u.userId) }; s.claimRejectedAt = 0;
+  DB.save(); closeModal(); toast("Thanks! We'll confirm your payment soon."); route();
+}
+/* admin: confirm a monthly payment by hand */
+function recordMonth(s) {
+  const amount = PLANS[planFor(s.hostId)].price, base = Math.max(Date.now(), s.status === "trial" ? s.trialEndsAt : (s.currentPeriodEnd || 0));
+  s.status = "active"; s.failedAttempts = 0; s.autoRenew = false; s.currentPeriodEnd = base + 30 * DAY;
+  s.history = s.history || []; s.history.unshift({ at: Date.now(), amount, result: "paid", note: "Monthly fee" });
+  DB.save();
+}
+
+/* ---------- admin panels ---------- */
+function siteAdminPanels() {
+  const s = Site.raw || {}, c = Site.contact(), p = Site.payments(), pre = Site.prelaunch();
+  const claims = DB.all("subscriptions").filter(x => x.claim).length;
+  return `${claims ? `<div class="notice" style="margin-top:16px">${claims} host payment${claims === 1 ? "" : "s"} waiting for you to confirm. <a href="#admin-subs">Review</a></div>` : ""}
+  <details class="panel" style="margin-top:16px" open><summary style="cursor:pointer"><b style="font-size:18px">Launch</b> <span class="st ${pre ? "pending" : "approved"}">${pre ? "pre-launch" : "live"}</span></summary>
+    ${pre ? `<p class="fine" style="margin:10px 0">Listings are public so people can browse and message hosts, but the Book now and bank transfer buttons show "${esc(Site.opensText())}".</p>
+      <form class="form" id="launchForm"><div><label class="f" for="lnDate">Launch date (optional, shown to guests)</label><input class="in" id="lnDate" type="date" value="${esc(s.launchDate || "")}"></div>
+      <div class="chips"><button class="btn sm" type="submit">Save date</button><button class="btn sm solid" type="button" data-launch="go">Launch now: open booking</button></div></form>`
+    : `<p class="fine" style="margin:10px 0">Booking is open. Guests can use Book now and bank transfer on every stay.</p><button class="btn sm" data-launch="back">Turn pre-launch back on</button>`}
+  </details>
+  <details class="panel" style="margin-top:16px"><summary style="cursor:pointer"><b style="font-size:18px">How hosts pay you</b> <span class="st ${Site.payReady() ? "approved" : "pending"}">${Site.payReady() ? "on" : "not set up"}</span></summary>
+    <p class="fine" style="margin:10px 0">Hosts see these when they pay the US$${REG_FEE} registration fee and monthly fees. Leave them empty and hosts see "Payment options are coming soon".</p>
+    <form class="form" id="payCfg">
+      <div><label class="f" for="pcPaypal">PayPal.me link</label><input class="in" id="pcPaypal" type="text" inputmode="url" placeholder="https://paypal.me/yourname" value="${esc(p.paypal || "")}" autocapitalize="off"></div>
+      <div class="r2"><div><label class="f" for="pcBank">Bank name</label><input class="in" id="pcBank" value="${esc(p.bankName || "")}"></div><div><label class="f" for="pcBranch">Branch</label><input class="in" id="pcBranch" value="${esc(p.bankBranch || "")}"></div></div>
+      <div><label class="f" for="pcName">Account name</label><input class="in" id="pcName" value="${esc(p.bankAcctName || "")}"></div>
+      <div class="r2"><div><label class="f" for="pcNo">Account number</label><input class="in" id="pcNo" inputmode="numeric" value="${esc(p.bankAcctNo || "")}"></div>
+        <div><label class="f" for="pcCur">Account type</label><select class="in" id="pcCur"><option value="JMD" ${p.bankCur !== "USD" ? "selected" : ""}>JMD account</option><option value="USD" ${p.bankCur === "USD" ? "selected" : ""}>USD account</option></select></div></div>
+      <div><label class="f" for="pcNote">Note for hosts (optional)</label><input class="in" id="pcNote" maxlength="200" placeholder="e.g. Lynk: @travelhaven" value="${esc(p.note || "")}"></div>
+      <p class="fine" style="margin:0">Only signed-in hosts can see these details.</p>
+      <div class="chips"><button class="btn sm solid" type="submit">Save</button></div></form></details>
+  <details class="panel" style="margin-top:16px"><summary style="cursor:pointer"><b style="font-size:18px">Contact page</b></summary>
+    <p class="fine" style="margin:10px 0">Shown on the <a href="#contact">Contact</a> page.</p>
+    <form class="form" id="contactCfg">
+      <div><label class="f" for="ccE1">Email 1</label><input class="in" id="ccE1" type="email" value="${esc(c.emails[0] || "")}"></div>
+      <div><label class="f" for="ccE2">Email 2</label><input class="in" id="ccE2" type="email" value="${esc(c.emails[1] || "")}"></div>
+      <div class="r2"><div><label class="f" for="ccPh">Phone</label><input class="in" id="ccPh" type="tel" placeholder="876 555 0100" value="${esc(c.phone || "")}"></div>
+        <div><label class="f" for="ccWa">WhatsApp</label><input class="in" id="ccWa" type="tel" placeholder="876 555 0100" value="${esc(c.whatsapp || "")}"></div></div>
+      <div class="chips"><button class="btn sm solid" type="submit">Save</button></div></form></details>`;
+}
+function adminClaims() {
+  const C = DB.all("subscriptions").filter(s => s.claim);
+  if (!C.length) return "";
+  return `<h3 style="font-size:22px;margin:0 0 10px">Payments to confirm</h3><div class="list" style="margin-bottom:18px">${C.map(s => {
+    const u = DB.find("users", "userId", s.hostId) || {};
+    return `<div class="item"><div class="mid"><b>${esc(u.name || "Host")} · US$${s.claim.amount}</b>
+      <div class="loc">${s.claim.kind === "reg" ? "Registration fee" : "Monthly fee"} · reference <b>${esc(s.claim.ref)}</b> · says paid ${fmtDate(s.claim.at)}</div>
+      <p class="fine" style="margin:4px 0">Check your PayPal or bank for this reference before confirming.</p>
+      <div class="acts"><button class="btn sm acc" data-claim="ok" data-sid="${s.hostId}">Confirm received</button><button class="btn sm bad" data-claim="no" data-sid="${s.hostId}">Not received</button></div></div></div>`;
+  }).join("")}</div>`;
+}
+/* Launch: open booking and give every host in their free period a fresh 60 days from today. */
+async function launchNow() {
+  const now = Date.now();
+  DB.all("subscriptions").forEach(s => {
+    if (s.status !== "trial") return;
+    s.startedAt = now; s.trialEndsAt = now + TRIAL_DAYS * DAY; s.currentPeriodEnd = s.trialEndsAt; s.regDueAt = now + REG_DAY * DAY;
+  });
+  DB.save();
+  await Site.saveSite({ prelaunch: false, launchedAt: now });
+}
 
 /* =========================================================
    Events
@@ -1725,7 +1860,19 @@ document.addEventListener("click", e => {
     track(el.dataset.track, el.dataset.pid);
     if (el.dataset.reveal) { $("#reveal").innerHTML = `<div class="reveal">${el.dataset.reveal}</div>`; }
     return; }
-  if ((el = c("[data-ejtest]"))) { el.disabled = true; Alerts.test(DB.state.user.email).then(ok => { toast(ok ? "Test email sent to " + DB.state.user.email + ". Check your inbox." : "Couldn't send. Check the three IDs in EmailJS."); el.disabled = false; }); return; }
+  if ((el = c("[data-ejtest]"))) { el.disabled = true; Alerts.test(DB.state.user.email).then(ok => { if (ok) toast("Test email sent to " + DB.state.user.email + ". Check your inbox."); else modal(`<h3>Test email didn't send</h3><p>EmailJS said:</p><div class="notice bad" style="word-break:break-word">${esc(Alerts.lastErr || "Unknown error")}</div><p class="fine" style="margin-top:10px">Take a screenshot of this and send it to whoever is helping you set it up.</p>`); el.disabled = false; }); return; }
+  if ((el = c("[data-hpay]"))) { hostPayModal(el.dataset.hpay); return; }
+  if ((el = c("[data-hpaid]"))) { hostPaid(el.dataset.hpaid); return; }
+  if ((el = c("[data-claim]"))) {
+    const s = DB.find("subscriptions", "hostId", el.dataset.sid); if (!s || !s.claim) return;
+    if (el.dataset.claim === "ok") { if (s.claim.kind === "reg") payReg(s, true); else recordMonth(s); s.claim = null; DB.save(); toast("Payment confirmed. The host can see it."); }
+    else { s.claim = null; s.claimRejectedAt = Date.now(); DB.save(); toast("Marked as not received. The host will be asked to check."); }
+    route(); return; }
+  if ((el = c("[data-launch]"))) {
+    if (el.dataset.launch === "go") { modal(`<h3>Launch TravelHaven?</h3><p>Booking opens on every stay right away. Every host still in their free period gets a fresh ${TRIAL_DAYS} free days starting today, and their US$${REG_FEE} registration fee moves to day ${REG_DAY} from today.</p><div class="chips" style="margin-top:12px"><button class="btn solid" data-launch="yes">Launch now</button><button class="btn" data-close>Not yet</button></div>`); return; }
+    if (el.dataset.launch === "yes") { closeModal(); launchNow().then(() => { toast("TravelHaven is live. Booking is open."); route(); }, () => toast("Couldn't save. Did you publish the new Firebase rules?")); return; }
+    if (el.dataset.launch === "back") { Site.saveSite({ prelaunch: true }).then(() => { toast("Pre-launch mode is on."); route(); }, () => toast("Couldn't save.")); return; }
+  }
   if ((el = c("[data-msg]"))) { Chat.begin(el.dataset.msg); return; }
   if ((el = c("[data-chat]"))) { Chat.action(el.dataset.chat); return; }
   if ((el = c("[data-bank]"))) {
@@ -1781,7 +1928,7 @@ document.addEventListener("click", e => {
   if ((el = c("[data-rremove]"))) { const r = DB.find("reports", "reportId", el.dataset.rremove); DB.update("properties", "propertyId", r.propertyId, { status: "removed" }); r.status = "resolved"; DB.save(); toast("Listing removed."); route(); return; }
   if ((el = c("[data-adm-sub]"))) {
     const s = DB.find("subscriptions", "hostId", el.dataset.sid), a = el.dataset.admSub;
-    if (a === "paid") { s.card = s.card || { label: "Recorded by admin" }; s.card.failNext = false; charge(s, false); toast("Payment recorded."); }
+    if (a === "paid") { recordMonth(s); toast("Monthly payment recorded."); }
     if (a === "reg") { payReg(s, true); toast("Registration fee recorded."); }
     if (a === "fail") { charge(s, false, true); toast("Failed payment simulated. Host is now past due."); }
     if (a === "extend") { if (s.status === "trial" || s.status === "expired") { s.status = "trial"; s.trialEndsAt = Math.max(Date.now(), s.trialEndsAt) + 30 * DAY; s.currentPeriodEnd = s.trialEndsAt; } else s.currentPeriodEnd += 30 * DAY; DB.save(); toast("Added 30 free days."); }
@@ -1806,6 +1953,15 @@ document.addEventListener("submit", e => {
     if (s.status === "past_due" || s.status === "expired") { const ok = charge(s, false); toast(ok ? "Payment method saved and payment received." : "Payment method saved, but the payment failed."); }
     else toast("Payment method saved.");
     route(); return; }
+  if (f.id === "launchForm") { Site.saveSite({ prelaunch: true, launchDate: $("#lnDate").value }).then(() => { toast("Launch date saved."); route(); }, () => toast("Couldn't save. Did you publish the new Firebase rules?")); return; }
+  if (f.id === "payCfg") {
+    const pp = $("#pcPaypal").value.trim(), v = { paypal: pp && !/^https?:\/\//i.test(pp) ? "https://" + pp : pp, bankName: $("#pcBank").value.trim(), bankBranch: $("#pcBranch").value.trim(), bankAcctName: $("#pcName").value.trim(), bankAcctNo: $("#pcNo").value.trim(), bankCur: $("#pcCur").value, note: $("#pcNote").value.trim() };
+    if (v.paypal && !safeUrl(v.paypal)) { toast("Check the PayPal link, e.g. https://paypal.me/yourname"); return; }
+    if (v.bankAcctNo && (!v.bankName || !v.bankAcctName)) { toast("Add the bank name and account name too."); return; }
+    Site.savePay(v).then(() => { toast(Site.payReady() ? "Saved. Hosts can now pay you." : "Saved. Hosts see \"Payment options are coming soon\"."); route(); }, () => toast("Couldn't save. Did you publish the new Firebase rules?")); return; }
+  if (f.id === "contactCfg") {
+    const v = { emails: [$("#ccE1").value.trim(), $("#ccE2").value.trim()].filter(Boolean), phone: $("#ccPh").value.trim(), whatsapp: $("#ccWa").value.trim() };
+    Site.saveSite({ contact: v }).then(() => toast("Contact page updated."), () => toast("Couldn't save. Did you publish the new Firebase rules?")); return; }
   if (f.id === "emailCfg") {
     const v = { serviceId: $("#ejS").value.trim(), templateId: $("#ejT").value.trim(), publicKey: $("#ejK").value.trim() };
     Alerts.saveConfig(v).then(() => { toast(Alerts.ready(v) ? "Email alerts saved." : "Saved. Fill in all three to turn alerts on."); route(); }, () => toast("Couldn't save. Did you publish the new Firebase rules?")); return; }
