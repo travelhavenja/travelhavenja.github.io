@@ -245,6 +245,17 @@ a.item.thr{text-decoration:none;color:inherit;align-items:center}
 .chatbar textarea{flex:1;resize:none;min-height:44px;max-height:160px}
 .chatbar .btn{flex:none}
 @media (max-width:400px){nav.bottom a{font-size:10px;letter-spacing:.03em}}
+
+/* photos */
+.phcount{font-size:14px;color:var(--muted)}
+.phcount b{color:var(--fg)}
+.pics .mv{position:absolute;left:4px;top:4px;display:flex;gap:4px}
+.pics .mv button{position:static;width:28px;height:28px;font-size:18px;line-height:1}
+#wPicBtn.busy{opacity:.6;pointer-events:none}
+.ph .gnav{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:50%;border:0;background:rgba(0,0,0,.45);color:#fff;font-size:26px;line-height:1;cursor:pointer;z-index:2}
+.ph .gnav.prev{left:10px}.ph .gnav.next{right:10px}
+.ph .gcount{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;padding:3px 8px;letter-spacing:.04em;z-index:2}
+.ph.gal{touch-action:pan-y}
 </style>
 </head>
 <body>
@@ -306,6 +317,7 @@ const perNight = p => (+p.price || 0) / UNITS[unitOf(p)].days;
 const TEST_AUTO_APPROVE = true;
 const PAIRS = [["#0f5c4d","#c98a4b"],["#1d3557","#e9c46a"],["#2a6f97","#f4a261"],["#264653","#e76f51"],["#3d405b","#81b29a"],["#6d597a","#eaac8b"],["#14213d","#fca311"],["#386641","#f2e8cf"],["#7b2d26","#f0c987"],["#005f73","#94d2bd"]];
 const DAY = 864e5;
+const MAX_PHOTOS = 10;
 async function sha256(t) { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); }
 
 /* ---------- business rules ---------- */
@@ -428,7 +440,7 @@ const DB = (() => {
       const id = ds.id, data = ds.data(); seen.add(id);
       let o = objs[t].get(id);
       if (!o) { o = {}; objs[t].set(id, o); }
-      const keepPhotos = o._full;
+      const keepPhotos = (o._photosDirty && o.photos) ? o.photos : (o._full || null); // photos waiting to upload win over the old saved set
       for (const k of Object.keys(o)) if (k[0] !== "_") delete o[k];
       Object.assign(o, data); o[TABLES[t].key] = id;
       if (t === "properties") o.photos = keepPhotos || (o.cover ? [o.cover] : []);
@@ -503,13 +515,14 @@ const DB = (() => {
     }
   }
   async function flushPhotos(o) {
-    if (!o._photosDirty) return; o._photosDirty = false;
+    if (!o._photosDirty) return;
+    const list = o.photos.slice(); o._full = list; o._photosDirty = false; // snapshot the list first so nothing can shrink it mid-upload
     const col = collection(fs, "properties", o.propertyId, "photos");
     try {
       const old = await getDocs(col);
       const b = writeBatch(fs); old.forEach(d => b.delete(d.ref)); await b.commit();
-      for (let i = 0; i < o.photos.length; i++) await setDoc(doc(col, "p" + i), { n: i, data: o.photos[i] });
-      o._full = o.photos.slice();
+      for (let i = 0; i < list.length; i++) await setDoc(doc(col, "p" + i), { n: i, data: list[i] });
+      o.photos = list.slice(); scheduleRender();
     } catch (e) { console.warn("photos", e); toast("Couldn't upload photos. Try smaller photos."); }
   }
   function save() { pending = true; flushing = flushing.then(() => { if (!pending) return; pending = false; return flush(); }); return flushing; }
@@ -825,7 +838,8 @@ function renderProperty(pid) {
     ${p.status === "approved" && !isPublic(p) ? `<div class="notice bad" style="margin-bottom:12px">Hidden from guests: the host's subscription isn't active.</div>` : ""}
     <a href="#search" class="linkbtn">← Back to results</a>
     <div style="margin-top:12px">
-      <div class="ph">${photoBox(p, state.gal)}
+      <div class="ph gal">${photoBox(p, state.gal)}
+        ${p.photos.length > 1 ? `<button class="gnav prev" data-galstep="-1" aria-label="Previous photo">‹</button><button class="gnav next" data-galstep="1" aria-label="Next photo">›</button><span class="gcount">${state.gal + 1} / ${p.photos.length}</span>` : ""}
         <button class="heart" data-fav="${pid}" aria-pressed="${fav}" aria-label="${fav ? "Remove from saved" : "Save"}">${fav ? "♥" : "♡"}</button></div>
       ${p.photos.length > 1 ? `<div class="thumbs">${p.photos.map((src, i) => `<button data-gal="${i}" aria-current="${i === state.gal}" aria-label="Photo ${i + 1}"><img src="${src}" alt=""></button>`).join("")}</div>` : ""}
     </div>
@@ -1084,9 +1098,11 @@ function renderWizard(editId) {
     <div><span class="f">Amenities</span><div class="chips">${AMENITIES.map(a => `<label><input type="checkbox" data-amen value="${esc(a)}" ${p.amenities.includes(a) ? "checked" : ""}> ${esc(a)}</label>`).join("")}</div></div>
     <div><label class="f" for="wDesc">Description</label><textarea class="in" id="wDesc" maxlength="1200" placeholder="${sale ? "Title, land size, condition, what's nearby…" : "What makes your place special? Nearby beaches, sights, transport…"}">${esc(p.description)}</textarea></div>`;
   if (st === 2) body = `
-    <p class="fine" style="margin:0">Add up to 8 photos. The first one is the cover. Clear, bright photos get more clicks.</p>
-    <div class="pics">${p.photos.map((src, i) => `<div><img src="${src}" alt="Photo ${i + 1}">${i === 0 ? `<span class="cover">Cover</span>` : `<button type="button" class="mk" data-cover="${i}">Make cover</button>`}<button type="button" data-delpic="${i}" aria-label="Remove photo">×</button></div>`).join("")}</div>
-    ${p.photos.length < 8 ? `<label class="btn" for="wPics" style="cursor:pointer;position:relative;overflow:hidden">Upload photos<input type="file" id="wPics" accept="image/*" multiple style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0"></label>
+    <p class="fine" style="margin:0">Add up to ${MAX_PHOTOS} photos. You can pick several at once from your gallery. The first one is the cover. Listings with 5 or more clear, bright photos get the most interest.</p>
+    <div class="phcount"><b>${p.photos.length} of ${MAX_PHOTOS}</b> photos${p.photos.length && p.photos.length < 5 ? " · add a few more if you can" : ""}</div>
+    <div class="pics">${p.photos.map((src, i) => `<div><img src="${src}" alt="Photo ${i + 1}">${i === 0 ? `<span class="cover">Cover</span>` : `<button type="button" class="mk" data-cover="${i}">Make cover</button>`}<button type="button" data-delpic="${i}" aria-label="Remove photo">×</button>
+      <span class="mv">${i > 0 ? `<button type="button" data-mvpic="${i},-1" aria-label="Move left">‹</button>` : ""}${i < p.photos.length - 1 ? `<button type="button" data-mvpic="${i},1" aria-label="Move right">›</button>` : ""}</span></div>`).join("")}</div>
+    ${p.photos.length < MAX_PHOTOS ? `<label class="btn solid full" id="wPicBtn" for="wPics" style="cursor:pointer;position:relative;overflow:hidden">${p.photos.length ? "+ Add more photos" : "+ Add photos"}<input type="file" id="wPics" accept="image/*" multiple style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0"></label>
       <p class="fine" id="wPicMsg" role="status" style="margin:0"></p>` : ""}
     ${p.photos.length ? "" : `<div class="ph" style="max-width:320px"><div style="position:absolute;inset:0;${bg(p)}"></div><div class="nm">No photos yet</div></div><p class="fine">Without photos, guests see a coloured block like this.</p>`}`;
   if (st === 3) {
@@ -1810,21 +1826,23 @@ document.addEventListener("change", e => {
   if (t.dataset.q) { state.q[t.dataset.q] = t.dataset.q === "guests" ? (+t.value || 0) : t.value; refreshResults(); return; }
   if (t.dataset.opt) { wizCollect(); wiz.on[t.dataset.opt] = t.checked; renderWizard(wiz.editId); return; }
   if (t.id === "wPics") {
-    const room = 8 - wiz.p.photos.length, all = [...t.files];
+    const room = MAX_PHOTOS - wiz.p.photos.length, all = [...t.files];
     const files = all.filter(f => !f.type || f.type.startsWith("image/") || /\.(jpe?g|png|gif|webp|heic|heif)$/i.test(f.name)).slice(0, room);
-    const msg = $("#wPicMsg");
-    if (!files.length) { if (msg) msg.textContent = all.length ? "That file isn't a photo. Choose a JPG or PNG image." : ""; return; }
-    if (msg) msg.textContent = `Adding ${files.length} photo${files.length > 1 ? "s" : ""}…`;
-    Promise.all(files.map(shrink)).then(list => {
-      const ok = list.filter(Boolean), bad = list.length - ok.length;
-      ok.forEach(u => wiz.p.photos.push(u));
+    const msg = () => $("#wPicMsg");
+    if (!files.length) { if (msg()) msg().textContent = all.length ? (room ? "That file isn't a photo. Choose a JPG or PNG image." : `You already have ${MAX_PHOTOS} photos. Remove one to add another.`) : ""; return; }
+    const lbl = $("#wPicBtn"); if (lbl) lbl.classList.add("busy");
+    (async () => {
+      let ok = 0, bad = 0;
+      for (let i = 0; i < files.length; i++) {               // one at a time so older phones don't run out of memory
+        if (msg()) msg().textContent = `Adding photo ${i + 1} of ${files.length}…`;
+        const u = await shrink(files[i]); if (u) { wiz.p.photos.push(u); ok++; } else bad++;
+      }
       renderWizard(wiz.editId);
-      const m = $("#wPicMsg"), extra = all.length > room ? ` Only ${room} more could be added (8 max).` : "";
-      if (m) m.textContent = bad ? `${ok.length} added. ${bad} couldn't be opened. iPhone HEIC photos may need to be shared as JPG (Settings › Camera › Formats › Most Compatible).${extra}` : `${ok.length} photo${ok.length > 1 ? "s" : ""} added.${extra}`;
-      if (ok.length) toast(`${ok.length} photo${ok.length > 1 ? "s" : ""} added`);
-    });
+      const extra = all.length > room ? ` You can have up to ${MAX_PHOTOS}, so ${all.length - room} weren't added.` : "";
+      if (msg()) msg().textContent = (bad ? `${ok} added. ${bad} couldn't be opened. iPhone HEIC photos may need to be shared as JPG (Settings › Camera › Formats › Most Compatible).` : `${ok} photo${ok === 1 ? "" : "s"} added.`) + extra;
+      if (ok) toast(`${ok} photo${ok === 1 ? "" : "s"} added`);
+    })();
   }
-
 });
 document.addEventListener("change", e => { if (e.target.matches("[data-alerts]")) { Alerts.setMine(e.target.checked); toast(e.target.checked ? "Email alerts on." : "Email alerts off."); } });
 document.addEventListener("input", e => {
@@ -1904,6 +1922,8 @@ document.addEventListener("click", e => {
   if ((el = c("[data-hdel-yes]"))) { DB.update("properties", "propertyId", el.dataset.hdelYes, { status: "removed" }); tickSubscriptions(); toast("Listing deleted."); route(); return; }
   if ((el = c("[data-wback]"))) { wizCollect(); wiz.step--; renderWizard(wiz.editId); window.scrollTo(0, 0); return; }
   if ((el = c("[data-delpic]"))) { wiz.p.photos.splice(+el.dataset.delpic, 1); renderWizard(wiz.editId); return; }
+  if ((el = c("[data-mvpic]"))) { const [i, d] = el.dataset.mvpic.split(",").map(Number), j = i + d, P = wiz.p.photos; if (j >= 0 && j < P.length) { [P[i], P[j]] = [P[j], P[i]]; renderWizard(wiz.editId); } return; }
+  if ((el = c("[data-galstep]"))) { const pid = location.hash.split("stay-")[1], p = DB.find("properties", "propertyId", pid), n = p ? p.photos.length : 1; state.gal = (state.gal + +el.dataset.galstep + n) % n; renderProperty(pid); return; }
   if ((el = c("[data-cover]"))) { const i = +el.dataset.cover; wiz.p.photos.unshift(wiz.p.photos.splice(i, 1)[0]); renderWizard(wiz.editId); return; }
   // admin
   if ((el = c("[data-approve]"))) { DB.update("properties", "propertyId", el.dataset.approve, { status: "approved", rejectReason: "", reviewedAt: Date.now() }); toast("Approved. It's now visible to guests."); route(); return; }
@@ -2028,6 +2048,14 @@ async function samples(on) {
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("#scrim").hidden) closeModal(); });
 window.addEventListener("hashchange", () => route());
 route();
+
+/* swipe left/right on a listing's main photo */
+let galX = null;
+document.addEventListener("touchstart", e => { galX = e.target.closest(".ph.gal") ? e.touches[0].clientX : null; }, { passive: true });
+document.addEventListener("touchend", e => {
+  if (galX === null) return; const dx = e.changedTouches[0].clientX - galX; galX = null;
+  if (Math.abs(dx) < 40) return; const btn = document.querySelector(`.ph.gal [data-galstep="${dx < 0 ? 1 : -1}"]`); if (btn) btn.click();
+}, { passive: true });
 
 </script>
 </body>
