@@ -256,6 +256,14 @@ a.item.thr{text-decoration:none;color:inherit;align-items:center}
 .ph .gnav.prev{left:10px}.ph .gnav.next{right:10px}
 .ph .gcount{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;padding:3px 8px;letter-spacing:.04em;z-index:2}
 .ph.gal{touch-action:pan-y}
+
+/* photo sliding on listing cards */
+.cgal{touch-action:pan-y}
+.card .cnav{position:absolute;top:50%;transform:translateY(-50%);width:34px;height:34px;border-radius:50%;border:0;background:rgba(255,255,255,.88);color:#111;font-size:22px;line-height:1;cursor:pointer;z-index:2;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.card .cnav.prev{left:8px}.card .cnav.next{right:8px}
+.cdots{position:absolute;left:0;right:0;bottom:10px;display:flex;justify-content:center;gap:5px;z-index:2;pointer-events:none}
+.cdots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.55)}
+.cdots i.on{background:#fff}
 </style>
 </head>
 <body>
@@ -499,7 +507,7 @@ const DB = (() => {
         const s = sig(t, o);
         if (synced[t].get(id) === s) { if (t === "properties") await flushPhotos(o); continue; }
         try {
-          if (t === "properties" && o._photosDirty) o.cover = o.photos[0] ? await thumb(o.photos[0]) : "";
+          if (t === "properties" && o._photosDirty) { o.cover = o.photos[0] ? await thumb(o.photos[0]) : ""; o.photoCount = o.photos.length; }
           const data = strip(t, o);
           if (t === "events" || (t === "reports" && !synced[t].has(id))) { await setDoc(doc(fs, TABLES[t].col, id), data); }
           else await setDoc(doc(fs, TABLES[t].col, id), data);
@@ -705,8 +713,11 @@ function route(soft) {
 function card(p) {
   const host = { name: p.hostName || (DB.find("users", "userId", p.hostId) || {}).name };
   const fav = isFav(p.propertyId);
+  const n = +p.photoCount || 0, ci = Math.min((state.cardIdx || {})[p.propertyId] || 0, Math.max(0, (p.photos || []).length - 1));
   return `<a class="card" href="#stay-${p.propertyId}">
-    <div class="ph">${photoBox(p)}${p.featured ? `<span class="badge">Featured</span>` : modeOf(p) === "sale" ? `<span class="badge">For sale</span>` : ""}
+    <div class="ph cgal" data-cpid="${p.propertyId}">${photoBox(p, ci)}
+      ${n > 1 ? `<button class="cnav prev" data-cardstep="${p.propertyId},-1" aria-label="Previous photo">‹</button><button class="cnav next" data-cardstep="${p.propertyId},1" aria-label="Next photo">›</button>
+      <span class="cdots">${Array.from({ length: Math.min(n, 7) }, (_, i) => `<i class="${i === Math.min(ci, 6) ? "on" : ""}"></i>`).join("")}</span>` : ""}${p.featured ? `<span class="badge">Featured</span>` : modeOf(p) === "sale" ? `<span class="badge">For sale</span>` : ""}
       <button class="heart" data-fav="${p.propertyId}" aria-pressed="${fav}" aria-label="${fav ? "Remove from saved" : "Save"}">${fav ? "♥" : "♡"}</button></div>
     <div class="meta">
       <div class="price">${priceHtml(p)}</div>
@@ -1868,6 +1879,7 @@ document.addEventListener("click", e => {
   if ((el = c("[data-cur]"))) {
     state.cur = el.dataset.cur; state.q.min = state.q.max = "";
     document.querySelectorAll("[data-cur]").forEach(b => b.setAttribute("aria-pressed", b === el)); route(); return; }
+  if ((el = c("[data-cardstep]"))) { e.preventDefault(); e.stopPropagation(); const [pid, d] = el.dataset.cardstep.split(","); cardStep(pid, +d); return; }
   if ((el = c("[data-fav]"))) { e.preventDefault(); e.stopPropagation();
     const on = toggleFav(el.dataset.fav); el.setAttribute("aria-pressed", on); el.textContent = on ? "♥" : "♡"; toast(on ? "Saved" : "Removed from saved");
     if ((location.hash || "").slice(1) === "favorites") route(); return; }
@@ -2056,6 +2068,25 @@ document.addEventListener("touchend", e => {
   if (galX === null) return; const dx = e.changedTouches[0].clientX - galX; galX = null;
   if (Math.abs(dx) < 40) return; const btn = document.querySelector(`.ph.gal [data-galstep="${dx < 0 ? 1 : -1}"]`); if (btn) btn.click();
 }, { passive: true });
+
+/* slide through photos on listing cards (photos load the first time someone slides) */
+async function cardStep(pid, d) {
+  const p = DB.find("properties", "propertyId", pid); if (!p) return;
+  state.cardIdx = state.cardIdx || {};
+  if (!p._full) { await DB.loadPhotos(p); }
+  const n = (p.photos || []).length; if (n < 2) return;
+  state.cardIdx[pid] = (((state.cardIdx[pid] || 0) + d) % n + n) % n;
+  const box = document.querySelector(`.cgal[data-cpid="${pid}"]`), card = box && box.closest(".card");
+  if (card) { const tmp = document.createElement("div"); tmp.innerHTML = cardHtml(p); card.replaceWith(tmp.firstElementChild); }
+}
+function cardHtml(p) { return card(p).trim(); }
+let cardX = null, cardY = null, cardPid = null, cardSwiped = false;
+document.addEventListener("touchstart", e => { const b = e.target.closest(".cgal"); cardPid = b && b.querySelector(".cnav") ? b.dataset.cpid : null; if (cardPid) { cardX = e.touches[0].clientX; cardY = e.touches[0].clientY; } }, { passive: true });
+document.addEventListener("touchend", e => {
+  if (!cardPid) return; const dx = e.changedTouches[0].clientX - cardX, dy = e.changedTouches[0].clientY - cardY, pid = cardPid; cardPid = null;
+  if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) { cardSwiped = true; setTimeout(() => cardSwiped = false, 400); cardStep(pid, dx < 0 ? 1 : -1); }
+}, { passive: true });
+document.addEventListener("click", e => { if (cardSwiped && e.target.closest(".cgal")) { e.preventDefault(); e.stopPropagation(); } }, true);
 
 </script>
 </body>
